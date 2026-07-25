@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/menu_provider.dart';
+import 'widgets/menu_item_dialog.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
@@ -11,73 +12,22 @@ class MenuScreen extends ConsumerStatefulWidget {
 }
 
 class _MenuScreenState extends ConsumerState<MenuScreen> {
-  final List<Map<String, dynamic>> _bulkData = List.generate(4, (index) => {
-    'name': '',
-    'category': 'Main Course',
-    'price': '0.00',
-    'is_vegetarian': true,
-    'is_available': true,
-  });
+  String _searchQuery = '';
+  String? _selectedCategory;
+  bool _onlyVeg = false;
+  bool _onlyNonVeg = false;
 
-  void _showBulkEntryModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Bulk Item Entry'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Item Name')),
-                DataColumn(label: Text('Category')),
-                DataColumn(label: Text('Price (₹)')),
-                DataColumn(label: Text('Veg/Non-Veg')),
-              ],
-              rows: List.generate(4, (index) => DataRow(
-                cells: [
-                  DataCell(TextFormField(
-                    onChanged: (val) => _bulkData[index]['name'] = val,
-                    decoration: const InputDecoration(hintText: 'e.g. Dal Makhani')
-                  )),
-                  DataCell(DropdownButtonFormField<String>(
-                    value: _bulkData[index]['category'],
-                    items: ['Starters', 'Main Course', 'Breads', 'Rice'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                    onChanged: (val) {
-                      if (val != null) _bulkData[index]['category'] = val;
-                    },
-                    decoration: const InputDecoration(hintText: 'Category'),
-                  )),
-                  DataCell(TextFormField(
-                    onChanged: (val) => _bulkData[index]['price'] = val,
-                    decoration: const InputDecoration(hintText: '0.00'), keyboardType: TextInputType.number
-                  )),
-                  DataCell(Switch(
-                    value: _bulkData[index]['is_vegetarian'], 
-                    onChanged: (v){
-                      setState(() {
-                        _bulkData[index]['is_vegetarian'] = v;
-                      });
-                    }, 
-                    activeColor: Colors.green
-                  )),
-                ],
-              )),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () {
-                final validItems = _bulkData.where((element) => element['name'].toString().isNotEmpty).toList();
-                ref.read(menuNotifierProvider.notifier).addMenuBulk(validItems);
-                Navigator.pop(context);
-              }, 
-              child: const Text('Save All')
-            ),
-          ],
-        );
-      }
+  Widget _buildCategoryChip(String label, bool isSelected, VoidCallback onTap) {
+    return ActionChip(
+      label: Text(label),
+      backgroundColor: isSelected ? AppTheme.primary : Colors.grey[200],
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      onPressed: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      side: BorderSide.none,
     );
   }
 
@@ -99,10 +49,16 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
               ),
               Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _showBulkEntryModal(context),
-                    icon: const Icon(Icons.table_rows_outlined),
-                    label: const Text('Bulk Item Entry'),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const MenuItemDialog(),
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Item(s) to Menu'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
                   ),
                   const SizedBox(width: 16),
                   ElevatedButton.icon(
@@ -114,43 +70,164 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
               )
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          
+          // Filters Row
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search menu items...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 24),
+              FilterChip(
+                label: const Text('Only Veg'),
+                selected: _onlyVeg,
+                onSelected: (val) {
+                  setState(() {
+                    _onlyVeg = val;
+                    if (val) _onlyNonVeg = false;
+                  });
+                },
+                selectedColor: Colors.green.withOpacity(0.2),
+                checkmarkColor: Colors.green,
+              ),
+              const SizedBox(width: 12),
+              FilterChip(
+                label: const Text('Only Non-Veg'),
+                selected: _onlyNonVeg,
+                onSelected: (val) {
+                  setState(() {
+                    _onlyNonVeg = val;
+                    if (val) _onlyVeg = false;
+                  });
+                },
+                selectedColor: AppTheme.error.withOpacity(0.2),
+                checkmarkColor: AppTheme.error,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Categories
+          menuAsyncValue.when(
+            data: (menuItems) {
+              final categories = menuItems.map((i) => i['category'] as String).toSet().toList();
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildCategoryChip('All', _selectedCategory == null, () {
+                      setState(() { _selectedCategory = null; });
+                    }),
+                    ...categories.map((c) => Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: _buildCategoryChip(c, _selectedCategory == c, () {
+                            setState(() { _selectedCategory = c; });
+                          }),
+                        )),
+                  ],
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (e, st) => const SizedBox.shrink(),
+          ),
+          
+          const SizedBox(height: 24),
           Expanded(
             child: Card(
               child: menuAsyncValue.when(
                 data: (menuItems) {
-                  if (menuItems.isEmpty) {
+                  // Apply filters
+                  var filtered = menuItems.where((item) {
+                    // Search Filter
+                    if (_searchQuery.isNotEmpty) {
+                      final name = item['name'].toString().toLowerCase();
+                      if (!name.contains(_searchQuery.toLowerCase())) return false;
+                    }
+                    // Category Filter
+                    if (_selectedCategory != null && item['category'] != _selectedCategory) {
+                      return false;
+                    }
+                    // Veg/Non-Veg Filter
+                    final isVeg = item['is_vegetarian'] ?? true;
+                    if (_onlyVeg && !isVeg) return false;
+                    if (_onlyNonVeg && isVeg) return false;
+                    
+                    return true;
+                  }).toList();
+
+                  if (filtered.isEmpty) {
                     return const Center(child: Text("No menu items found."));
                   }
+                  
                   return ListView.separated(
-                    itemCount: menuItems.length,
+                    itemCount: filtered.length,
                     separatorBuilder: (context, index) => const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final item = menuItems[index];
+                      final item = filtered[index];
                       final isVeg = item['is_vegetarian'] ?? true;
+                      
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        leading: Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(
-                              color: isVeg ? Colors.green : AppTheme.error,
-                              width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 8,
-                              height: 8,
+                        leading: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
                               decoration: BoxDecoration(
-                                color: isVeg ? Colors.green : AppTheme.error,
-                                shape: BoxShape.circle,
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                                image: item['image_url'] != null && item['image_url'].toString().isNotEmpty
+                                    ? DecorationImage(image: NetworkImage(item['image_url']), fit: BoxFit.cover)
+                                    : null,
+                              ),
+                              child: item['image_url'] == null || item['image_url'].toString().isEmpty
+                                  ? const Icon(Icons.fastfood, color: Colors.grey)
+                                  : null,
+                            ),
+                            const SizedBox(width: 16),
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(
+                                  color: isVeg ? Colors.green : AppTheme.error,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: isVeg ? Colors.green : AppTheme.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
                         title: Text(item['name'], style: Theme.of(context).textTheme.headlineMedium),
                         subtitle: Text(item['category'], style: Theme.of(context).textTheme.labelSmall),
@@ -161,16 +238,45 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                             const SizedBox(width: 32),
                             Switch(
                               value: item['is_available'] ?? true,
-                              activeColor: AppTheme.primary,
-                              onChanged: (val) {
-                                // TODO: Call update API
+                              activeColor: Colors.green,
+                              onChanged: (val) async {
+                                final updated = Map<String, dynamic>.from(item);
+                                updated['is_available'] = val;
+                                await ref.read(menuNotifierProvider.notifier).updateMenuItem(item['menu_item_id'], updated);
                               },
                             ),
                             const SizedBox(width: 16),
                             IconButton(
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: () {},
-                            )
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => MenuItemDialog(item: item),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: AppTheme.error),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Delete Item'),
+                                    content: Text('Are you sure you want to delete ${item['name']}?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                                      TextButton(
+                                        onPressed: () {
+                                          ref.read(menuNotifierProvider.notifier).deleteMenuItem(item['menu_item_id']);
+                                          Navigator.pop(context);
+                                        }, 
+                                        child: const Text('Delete', style: TextStyle(color: AppTheme.error))
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       );
@@ -178,10 +284,10 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stackTrace) => Center(child: Text('Error: $error')),
+                error: (e, st) => Center(child: Text('Error: $e')),
               ),
             ),
-          )
+          ),
         ],
       ),
     );

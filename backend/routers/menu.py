@@ -50,3 +50,60 @@ def bulk_create_menu_items(
     for db_item in db_items:
         db.refresh(db_item)
     return db_items
+
+@router.get("/categories", response_model=List[str])
+def get_categories(
+    branch_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(security.get_current_user_token)
+):
+    b_id = branch_id or token_data.get("branch_id")
+    
+    query = db.query(models.MenuItem.category).distinct()
+    if b_id:
+        query = query.filter(models.MenuItem.branch_id == b_id)
+        
+    categories = [cat[0] for cat in query.all() if cat[0]]
+    return categories
+
+@router.put("/items/{item_id}", response_model=schemas.MenuItemResponse)
+def update_menu_item(
+    item_id: int,
+    item: schemas.MenuItemCreate,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(security.get_current_user_token)
+):
+    b_id = token_data.get("branch_id")
+    query = db.query(models.MenuItem).filter(models.MenuItem.menu_item_id == item_id)
+    if b_id:
+        query = query.filter(models.MenuItem.branch_id == b_id)
+        
+    db_item = query.first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+        
+    for key, value in item.model_dump().items():
+        setattr(db_item, key, value)
+        
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+@router.delete("/items/{item_id}")
+def delete_menu_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(security.get_current_user_token)
+):
+    b_id = token_data.get("branch_id")
+    query = db.query(models.MenuItem).filter(models.MenuItem.menu_item_id == item_id)
+    if b_id:
+        query = query.filter(models.MenuItem.branch_id == b_id)
+        
+    db_item = query.first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+        
+    db.delete(db_item)
+    db.commit()
+    return {"status": "deleted"}

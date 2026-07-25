@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey, Date, Numeric, Text
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -29,6 +30,8 @@ class MenuItem(Base):
     is_available = Column(Boolean, default=True)
     image_url = Column(String, nullable=True)
     branch_id = Column(Integer, ForeignKey("branches.branch_id"))
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 class Employee(Base):
     __tablename__ = "employees"
@@ -106,7 +109,11 @@ class Bill(Base):
     tax_amount = Column(Numeric(10, 2))
     discount_amount = Column(Numeric(10, 2))
     total_amount = Column(Numeric(10, 2))
+    tip_amount = Column(Numeric(10, 2), default=0)
     payment_mode = Column(String)
+    cash_amount = Column(Numeric(10, 2), default=0)
+    upi_amount = Column(Numeric(10, 2), default=0)
+    card_amount = Column(Numeric(10, 2), default=0)
     payment_status = Column(String)
     billed_by = Column(Integer, ForeignKey("users.user_id"))
     branch_id = Column(Integer, ForeignKey("branches.branch_id"))
