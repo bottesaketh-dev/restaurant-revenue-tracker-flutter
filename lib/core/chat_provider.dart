@@ -41,7 +41,8 @@ class ChatStreamService {
         final data = jsonDecode(line);
         yield data;
       } catch (e) {
-        // ignore malformed JSON
+        print('Error decoding AI stream line: $e');
+        print('Offending line: $line');
       }
     }
     client.close();

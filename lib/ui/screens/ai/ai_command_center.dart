@@ -54,9 +54,10 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
             }
           }
         } else if (data['type'] == 'final') {
+          final text = data['text'] as String?;
           _messages.add({
             'type': 'ai',
-            'content': data['text'] ?? 'No text response.',
+            'content': (text == null || text.trim().isEmpty) ? 'The AI finished processing but returned an empty response.' : text,
             'hasChart': data['charts'] != null && (data['charts'] as List).isNotEmpty,
           });
           _isProcessing = false;
@@ -78,6 +79,12 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
           'hasChart': false,
         });
       });
+    }, onDone: () {
+      if (mounted && _isProcessing) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
     });
   }
 

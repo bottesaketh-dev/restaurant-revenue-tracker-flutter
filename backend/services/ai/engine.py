@@ -74,7 +74,7 @@ class RestaurantAgent:
         logger.info("--- New query: %s", user_input)
 
         plan = self.generate_plan(user_input)
-        yield json.dumps({"type": "plan", "steps": plan}, default=str) + "\\n"
+        yield json.dumps({"type": "plan", "steps": plan}, default=str) + "\n"
 
         q = queue.Queue()
 
@@ -130,9 +130,9 @@ class RestaurantAgent:
                 item = q.get(timeout=120)
             except queue.Empty:
                 logger.error("  Timeout: agent did not respond within 120 s.")
-                yield json.dumps({"type": "error", "message": "Agent timed out."}) + "\\n"
+                yield json.dumps({"type": "error", "message": "Agent timed out."}, default=str) + "\n"
                 break
-            yield json.dumps(item, default=str) + "\\n"
+            yield json.dumps(item, default=str) + "\n"
             if item["type"] in ("final", "error"):
                 break
 
