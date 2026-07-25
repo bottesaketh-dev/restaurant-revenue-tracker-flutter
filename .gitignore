@@ -214,3 +214,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+
+# flutter apps
+.dart_tool/
+.idea/
+android/
+build/
+ios/
+linux/
+macos/
+test/
+web/
+windows/
+.metadata
+analysis_options.yaml
+restaurant_flutter.iml
