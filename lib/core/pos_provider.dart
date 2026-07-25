@@ -176,6 +176,35 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
   void clearCart() {
     state = [];
   }
+
+  Future<void> checkout({
+    required String tableId,
+    required String paymentMode,
+    required double tipAmount,
+    required double cashAmount,
+    required double upiAmount,
+    required double cardAmount,
+  }) async {
+    try {
+      final requestData = {
+        "payment_mode": paymentMode,
+        "tip_amount": tipAmount,
+        "cash_amount": cashAmount,
+        "upi_amount": upiAmount,
+        "card_amount": cardAmount,
+      };
+      
+      await _dio.post('/billing/tables/$tableId/checkout', data: requestData);
+      
+      // Clear cart locally
+      state = [];
+      // Refresh table status
+      _ref.invalidate(posTablesProvider);
+      
+    } catch (e) {
+      throw Exception("Checkout failed: $e");
+    }
+  }
 }
 
 final posCartProvider = StateNotifierProvider<CartNotifier, List<CartItemModel>>((ref) {

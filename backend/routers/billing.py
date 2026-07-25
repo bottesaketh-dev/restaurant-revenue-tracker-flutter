@@ -118,3 +118,69 @@ def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)
             
     db.commit()
     return {"status": "success", "order_id": order.order_id}
+
+
+class CheckoutRequest(BaseModel):
+    payment_mode: str
+    tip_amount: float = 0.0
+    cash_amount: float = 0.0
+    upi_amount: float = 0.0
+    card_amount: float = 0.0
+
+@router.post("/tables/{table_id}/checkout")
+def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_db)):
+    from datetime import datetime
+    from decimal import Decimal
+    from uuid import uuid4
+    
+    # 1. Fetch active order
+    order = db.query(models.Order).filter(
+        models.Order.table_id == table_id,
+        models.Order.status == 'active'
+    ).first()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="No active order for this table")
+    
+    # 2. Calculate subtotal from order items
+    order_items = db.query(models.OrderItem).filter(models.OrderItem.order_id == order.order_id).all()
+    subtotal = sum(item.total_price for item in order_items) if order_items else Decimal(0)
+    tax_amount = subtotal * Decimal('0.05')  # Hardcoded 5% tax based on flutter app
+    
+    total = subtotal + tax_amount + Decimal(str(request.tip_amount))
+    
+    # 3. Create Bill
+    bill = models.Bill(
+        bill_id=f"BILL-{uuid4().hex[:6].upper()}",
+        order_id=order.order_id,
+        table_id=order.table_id,
+        subtotal=subtotal,
+        tax_amount=tax_amount,
+        discount_amount=Decimal(0),
+        total_amount=total,
+        tip_amount=Decimal(str(request.tip_amount)),
+        payment_mode=request.payment_mode,
+        cash_amount=Decimal(str(request.cash_amount)),
+        upi_amount=Decimal(str(request.upi_amount)),
+        card_amount=Decimal(str(request.card_amount)),
+        payment_status="completed",
+        billed_by=1,
+        branch_id=1,
+        bill_date=datetime.now().date(),
+        bill_time=datetime.now().time(),
+        created_at=datetime.now()
+    )
+    db.add(bill)
+    
+    # 4. Update Order
+    order.status = "completed"
+    order.updated_at = datetime.now()
+    
+    # 5. Update Table (only for dine_in)
+    if table_id != "TAKEAWAY":
+        table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
+        if table:
+            table.status = "available"
+            
+    db.commit()
+    return {"status": "success", "bill_id": bill.bill_id}

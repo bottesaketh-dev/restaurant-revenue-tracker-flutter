@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/pos_provider.dart';
 import '../../../core/menu_provider.dart';
 import '../../../theme/app_theme.dart';
+import 'widgets/checkout_dialog.dart';
 
 class PosBillingScreen extends ConsumerStatefulWidget {
   const PosBillingScreen({super.key});
@@ -443,11 +444,25 @@ class _CartPanel extends ConsumerWidget {
                   child: SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: cartItems.isNotEmpty
-                          ? () {
-                            // Proceed to checkout logic
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checkout processing...')));
-                          }
+                      onPressed: cartItems.any((item) => item.isKotPrinted)
+                          ? () async {
+                              final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
+                              
+                              final result = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => CheckoutDialog(
+                                  tableId: tableId,
+                                  items: cartItems.where((item) => item.isKotPrinted).toList(),
+                                )
+                              );
+                              
+                              if (result == true) {
+                                // Deselect table if dine in
+                                if (mode == OrderMode.dineIn) {
+                                  ref.read(selectedTableProvider.notifier).state = null;
+                                }
+                              }
+                            }
                           : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
