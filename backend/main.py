@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # Import routers
-from routers import auth, menu, staff, expenses, dashboard, groceries, billing, chat, reports, branches
+from routers import auth, menu, staff, expenses, dashboard, groceries, billing, chat, reports, branches, kitchen
 
 app.include_router(auth.router)
 app.include_router(branches.router)
@@ -30,6 +30,7 @@ app.include_router(groceries.router)
 app.include_router(billing.router)
 app.include_router(chat.router)
 app.include_router(reports.router)
+app.include_router(kitchen.router)
 
 @app.get("/")
 def read_root():

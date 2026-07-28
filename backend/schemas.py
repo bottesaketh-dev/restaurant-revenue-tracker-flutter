@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal
 
 # Branches
@@ -48,9 +48,11 @@ class EmployeeBase(BaseModel):
     phone: str
     position: str
     monthly_salary: Decimal
+    is_active: bool = True
 
 class EmployeeCreate(EmployeeBase):
-    pass
+    join_date: Optional[date] = None
+    branch_id: Optional[int] = None
 
 class EmployeeResponse(EmployeeBase):
     join_date: Optional[date] = None
@@ -58,13 +60,27 @@ class EmployeeResponse(EmployeeBase):
         from_attributes = True
 
 # Expenses
+class ExpenseCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class ExpenseCategoryCreate(ExpenseCategoryBase):
+    pass
+
+class ExpenseCategoryResponse(ExpenseCategoryBase):
+    expense_category_id: int
+    class Config:
+        from_attributes = True
+
 class ExpenseBase(BaseModel):
     expense_date: date
-    category_id: int
+    category_id: Optional[int] = None
+    new_category_name: Optional[str] = None
     description: str
     amount: Decimal
     payment_mode: str
     vendor_name: Optional[str] = None
+    receipt_number: Optional[str] = None
 
 class ExpenseCreate(ExpenseBase):
     pass
@@ -77,6 +93,16 @@ class ExpenseResponse(ExpenseBase):
 from datetime import datetime, time
 
 # POS Billing
+class TableCreate(BaseModel):
+    table_id: str
+    capacity: int
+
+class TableUpdate(BaseModel):
+    table_id: Optional[str] = None
+    capacity: Optional[int] = None
+    status: Optional[str] = None
+    is_active: Optional[bool] = None
+
 class TableResponse(BaseModel):
     table_id: str
     capacity: int
@@ -129,22 +155,33 @@ class BillResponse(BaseModel):
         from_attributes = True
 
 # Groceries
-class GroceryCategoryResponse(BaseModel):
-    grocery_category_id: int
+class GroceryCategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
+
+class GroceryCategoryCreate(GroceryCategoryBase):
+    pass
+
+class GroceryCategoryResponse(GroceryCategoryBase):
+    grocery_category_id: int
     class Config:
         from_attributes = True
 
-class GroceryItemResponse(BaseModel):
-    grocery_item_id: str
+class GroceryItemBase(BaseModel):
     product_name: str
     category_id: int
     unit: str
+
+class GroceryItemCreate(GroceryItemBase):
+    pass
+
+class GroceryItemResponse(GroceryItemBase):
+    grocery_item_id: str
     class Config:
         from_attributes = True
 
 class GroceryPurchaseCreate(BaseModel):
+    purchase_date: date
     grocery_item_id: str
     quantity: Decimal
     unit_price: Decimal
@@ -153,7 +190,6 @@ class GroceryPurchaseCreate(BaseModel):
 
 class GroceryPurchaseResponse(GroceryPurchaseCreate):
     grocery_purchase_id: int
-    purchase_date: date
     total_price: Decimal
     class Config:
         from_attributes = True
@@ -179,5 +215,29 @@ class SalaryPaymentResponse(BaseModel):
     payment_date: Optional[date]
     payment_status: str
     payment_mode: Optional[str]
+    class Config:
+        from_attributes = True
+
+# Inventory
+class InventoryStockResponse(BaseModel):
+    inventory_id: int
+    grocery_item_id: str
+    current_stock: Decimal
+    last_updated: datetime
+    class Config:
+        from_attributes = True
+
+# Recipes
+class RecipeIngredientBase(BaseModel):
+    grocery_item_id: str
+    quantity_required: Decimal
+
+class RecipeIngredientCreate(RecipeIngredientBase):
+    pass
+
+class RecipeIngredientResponse(RecipeIngredientBase):
+    recipe_ingredient_id: int
+    menu_item_id: int
+    created_at: datetime
     class Config:
         from_attributes = True

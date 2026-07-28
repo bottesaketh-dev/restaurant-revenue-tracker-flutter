@@ -14,6 +14,62 @@ def get_tables(branch_id: Optional[int] = None, db: Session = Depends(get_db)):
         query = query.filter(models.RestaurantTable.branch_id == branch_id)
     return query.all()
 
+@router.post("/tables/bulk", response_model=List[schemas.TableResponse])
+def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = 1, db: Session = Depends(get_db)):
+    created = []
+    for t in tables:
+        # Check if table exists
+        existing = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == t.table_id).first()
+        if existing:
+            existing.capacity = t.capacity
+            existing.is_active = True
+            if existing.status == None:
+                existing.status = "available"
+            created.append(existing)
+        else:
+            new_table = models.RestaurantTable(
+                table_id=t.table_id,
+                capacity=t.capacity,
+                status="available",
+                branch_id=branch_id,
+                is_active=True
+            )
+            db.add(new_table)
+            created.append(new_table)
+    db.commit()
+    for c in created:
+        db.refresh(c)
+    return created
+
+@router.put("/tables/{table_id}", response_model=schemas.TableResponse)
+def update_table(table_id: str, table_update: schemas.TableUpdate, db: Session = Depends(get_db)):
+    db_table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
+    if not db_table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    
+    update_data = table_update.model_dump(exclude_unset=True)
+    if 'table_id' in update_data and update_data['table_id'] != table_id:
+        # Need to handle ID change if necessary, but usually we don't change primary keys
+        pass
+
+    for key, value in update_data.items():
+        if key != 'table_id':
+            setattr(db_table, key, value)
+            
+    db.commit()
+    db.refresh(db_table)
+    return db_table
+
+@router.delete("/tables/{table_id}")
+def delete_table(table_id: str, db: Session = Depends(get_db)):
+    db_table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
+    if not db_table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    
+    db_table.is_active = False
+    db.commit()
+    return {"status": "deleted"}
+
 @router.get("/tables/{table_id}/order", response_model=Optional[schemas.OrderResponse])
 def get_active_order(table_id: str, db: Session = Depends(get_db)):
     order = db.query(models.Order).filter(
@@ -181,6 +237,17 @@ def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_
         table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
         if table:
             table.status = "available"
+            
+    # 6. Deduct Inventory Stock
+    for item in order_items:
+        # Find recipe for this menu item
+        recipes = db.query(models.RecipeIngredient).filter(models.RecipeIngredient.menu_item_id == item.menu_item_id).all()
+        for recipe in recipes:
+            stock = db.query(models.InventoryStock).filter(models.InventoryStock.grocery_item_id == recipe.grocery_item_id).first()
+            if stock:
+                # Deduct quantity required per item * number of items ordered
+                total_required = float(recipe.quantity_required) * float(item.quantity)
+                stock.current_stock -= total_required
             
     db.commit()
     return {"status": "success", "bill_id": bill.bill_id}
