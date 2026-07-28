@@ -4,6 +4,7 @@ import '../../../core/pos_provider.dart';
 import '../../../core/menu_provider.dart';
 import '../../../theme/app_theme.dart';
 import 'widgets/checkout_dialog.dart';
+import 'widgets/manage_tables_dialog.dart';
 
 class PosBillingScreen extends ConsumerStatefulWidget {
   const PosBillingScreen({super.key});
@@ -62,20 +63,36 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
   }
 
   Widget _buildHeader(OrderMode currentMode) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildToggleBtn('Dine In', OrderMode.dineIn, currentMode),
-          _buildToggleBtn('Takeaway', OrderMode.takeaway, currentMode),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildToggleBtn('Dine In', OrderMode.dineIn, currentMode),
+              _buildToggleBtn('Takeaway', OrderMode.takeaway, currentMode),
+            ],
+          ),
+        ),
+        ElevatedButton.icon(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) => const ManageTablesDialog(),
+            );
+          },
+          icon: const Icon(Icons.table_restaurant),
+          label: const Text('Manage Tables'),
+          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+        ),
+      ],
     );
   }
 

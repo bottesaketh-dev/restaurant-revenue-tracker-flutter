@@ -102,6 +102,13 @@ class SidebarLayout extends ConsumerWidget {
                   onTap: () => context.go('/groceries'),
                 ),
                 _SidebarItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Kitchen & Recipes',
+                  isSelected: currentPath == '/kitchen',
+                  isCollapsed: isCollapsed,
+                  onTap: () => context.go('/kitchen'),
+                ),
+                _SidebarItem(
                   icon: Icons.payments,
                   label: 'General Expenses',
                   isSelected: currentPath == '/expenses',

@@ -12,6 +12,7 @@ import 'ui/screens/groceries/groceries_screen.dart';
 import 'ui/screens/expenses/expenses_screen.dart';
 import 'ui/screens/reports/reports_screen.dart';
 import 'ui/screens/ai/ai_command_center.dart';
+import 'ui/screens/kitchen/kitchen_screen.dart';
 import 'core/auth_provider.dart';
 
 void main() {
@@ -76,6 +77,10 @@ class FlavorsLedgerApp extends ConsumerWidget {
             GoRoute(
               path: '/ai',
               builder: (context, state) => const AiCommandCenterScreen(),
+            ),
+            GoRoute(
+              path: '/kitchen',
+              builder: (context, state) => const KitchenScreen(),
             ),
           ],
         ),

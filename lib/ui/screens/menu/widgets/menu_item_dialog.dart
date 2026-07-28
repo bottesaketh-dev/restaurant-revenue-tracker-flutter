@@ -42,6 +42,7 @@ class MenuItemDialog extends ConsumerStatefulWidget {
 
 class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
   final List<_ItemEntry> _entries = [];
+  final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
 
   @override
@@ -86,6 +87,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
     for (var entry in _entries) {
       entry.dispose();
     }
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -169,143 +171,128 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(isEdit ? 'Edit Menu Item' : 'Add Item(s) to Menu', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                if (!isEdit)
-                  OutlinedButton.icon(
-                    onPressed: _addNewEntryRow,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Row'),
-                  )
               ],
             ),
             const SizedBox(height: 24),
             
-            // Header for columns
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0, right: 48.0), // padding right for the delete button space
-              child: Row(
-                children: [
-                  Expanded(flex: 3, child: Text('Item Name *', style: Theme.of(context).textTheme.labelLarge)),
-                  const SizedBox(width: 16),
-                  Expanded(flex: 2, child: Text('Category *', style: Theme.of(context).textTheme.labelLarge)),
-                  const SizedBox(width: 16),
-                  Expanded(flex: 2, child: Text('Price (₹) *', style: Theme.of(context).textTheme.labelLarge)),
-                  const SizedBox(width: 16),
-                  Expanded(flex: 2, child: Text('Veg?', style: Theme.of(context).textTheme.labelLarge)),
-                ],
-              ),
-            ),
-            const Divider(),
-            
             Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: _entries.length,
-                separatorBuilder: (_, __) => const Divider(height: 32),
-                itemBuilder: (context, index) {
-                  final entry = _entries[index];
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Name & Desc
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: entry.name,
-                              decoration: const InputDecoration(hintText: 'e.g. Dal Makhani', isDense: true),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: entry.desc,
-                              decoration: const InputDecoration(hintText: 'Description (Optional)', isDense: true),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
+              child: Scrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  controller: _scrollController,
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: DataTable(
+                        columnSpacing: 16,
+                        columns: [
+                          const DataColumn(label: Text('Item Name *')),
+                          const DataColumn(label: Text('Description')),
+                          const DataColumn(label: Text('Category *')),
+                          const DataColumn(label: Text('Price (₹) *')),
+                          const DataColumn(label: Text('Veg?')),
+                          if (!isEdit) const DataColumn(label: Text('')),
+                        ],
+                        rows: List.generate(_entries.length, (index) {
+                          final entry = _entries[index];
+                          return DataRow(
+                            cells: [
+                              DataCell(SizedBox(
+                                width: 150,
+                                child: TextField(
+                                  controller: entry.name,
+                                  decoration: const InputDecoration(hintText: 'e.g. Dal Makhani', isDense: true),
+                                ),
+                              )),
+                              DataCell(SizedBox(
+                                width: 200,
+                                child: TextField(
+                                  controller: entry.desc,
+                                  decoration: const InputDecoration(hintText: 'Description (Optional)', isDense: true),
+                                ),
+                              )),
+                              DataCell(SizedBox(
+                                width: 150,
+                                child: categoriesAsync.when(
+                                  data: (categories) {
+                                    return Autocomplete<String>(
+                                      initialValue: TextEditingValue(text: entry.category.text),
+                                      optionsBuilder: (TextEditingValue textEditingValue) {
+                                        if (textEditingValue.text.isEmpty) {
+                                          return categories;
+                                        }
+                                        return categories.where((String option) {
+                                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                                        });
+                                      },
+                                      onSelected: (String selection) {
+                                        entry.category.text = selection;
+                                      },
+                                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                        controller.addListener(() {
+                                          entry.category.text = controller.text;
+                                        });
+                                        return TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: const InputDecoration(
+                                            hintText: 'e.g. Main Course',
+                                            isDense: true,
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                  loading: () => const Center(child: CircularProgressIndicator()),
+                                  error: (err, stack) => TextField(
+                                    controller: entry.category,
+                                    decoration: const InputDecoration(hintText: 'Category', isDense: true),
+                                  )
+                                ),
+                              )),
+                              DataCell(SizedBox(
+                                width: 100,
+                                child: TextField(
+                                  controller: entry.price,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(hintText: '0.00', isDense: true),
+                                ),
+                              )),
+                              DataCell(Switch(
+                                value: entry.isVeg,
+                                activeColor: Colors.green,
+                                inactiveThumbColor: AppTheme.error,
+                                inactiveTrackColor: AppTheme.error.withOpacity(0.5),
+                                onChanged: (val) => setState(() => entry.isVeg = val),
+                              )),
+                              if (!isEdit)
+                                DataCell(
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                    onPressed: _entries.length > 1 ? () => _removeEntryRow(index) : null,
+                                  )
+                                ),
+                            ],
+                          );
+                        }),
                       ),
-                      const SizedBox(width: 16),
-                      
-                      // Category
-                      Expanded(
-                        flex: 2,
-                        child: categoriesAsync.when(
-                          data: (categories) {
-                            return Autocomplete<String>(
-                              initialValue: TextEditingValue(text: entry.category.text),
-                              optionsBuilder: (TextEditingValue textEditingValue) {
-                                if (textEditingValue.text.isEmpty) {
-                                  return categories;
-                                }
-                                return categories.where((String option) {
-                                  return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                                });
-                              },
-                              onSelected: (String selection) {
-                                entry.category.text = selection;
-                              },
-                              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                                controller.addListener(() {
-                                  entry.category.text = controller.text;
-                                });
-                                return TextField(
-                                  controller: controller,
-                                  focusNode: focusNode,
-                                  decoration: const InputDecoration(
-                                    hintText: 'e.g. Main Course',
-                                    isDense: true,
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (err, stack) => TextField(
-                            controller: entry.category,
-                            decoration: const InputDecoration(hintText: 'Category', isDense: true),
-                          )
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      
-                      // Price
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: entry.price,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(hintText: '0.00', isDense: true),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      
-                      // Veg Toggle
-                      Expanded(
-                        flex: 2,
-                        child: Switch(
-                          value: entry.isVeg,
-                          activeColor: Colors.green,
-                          inactiveThumbColor: AppTheme.error,
-                          inactiveTrackColor: AppTheme.error.withOpacity(0.5),
-                          onChanged: (val) => setState(() => entry.isVeg = val),
-                        ),
-                      ),
-                      
-                      // Delete Row Button
-                      if (!isEdit)
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.grey),
-                          onPressed: _entries.length > 1 ? () => _removeEntryRow(index) : null,
-                        )
-                      else 
-                        const SizedBox(width: 48), // Spacer to align headers correctly for edit
-                    ],
-                  );
-                },
+                    ),
+                  ),
+                ),
               ),
             ),
             
-            const SizedBox(height: 32),
+            if (!isEdit) ...[
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _addNewEntryRow,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Another Row'),
+              )
+            ],
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

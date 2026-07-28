@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'api_client.dart';
 import 'branch_provider.dart';
 import 'menu_provider.dart';
+import 'kitchen_provider.dart';
 
 enum OrderMode { dineIn, takeaway }
 
@@ -11,40 +12,71 @@ final selectedTableProvider = StateProvider<String?>((ref) => null);
 final posSearchQueryProvider = StateProvider<String>((ref) => '');
 final posSelectedCategoryProvider = StateProvider<String?>((ref) => null);
 
-final posTablesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final dio = ref.watch(dioProvider);
-  final branchId = ref.watch(selectedBranchProvider);
-  final queryParams = branchId != null ? {'branch_id': branchId} : null;
-  final response = await dio.get('/billing/tables', queryParameters: queryParams);
-  
-  List<Map<String, dynamic>> tables = List<Map<String, dynamic>>.from(response.data);
-  
-  // Sort occupied first, then unoccupied, both by table_id numerically
-  tables.sort((a, b) {
-    final bool aOccupied = a['status'] == 'occupied';
-    final bool bOccupied = b['status'] == 'occupied';
+class PosTablesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
+  @override
+  Future<List<Map<String, dynamic>>> build() async {
+    final dio = ref.watch(dioProvider);
+    final branchId = ref.watch(selectedBranchProvider);
+    final queryParams = branchId != null ? {'branch_id': branchId} : null;
+    final response = await dio.get('/billing/tables', queryParameters: queryParams);
     
-    if (aOccupied && !bOccupied) return -1;
-    if (!aOccupied && bOccupied) return 1;
+    List<Map<String, dynamic>> tables = List<Map<String, dynamic>>.from(response.data);
     
-    // Extract integer from table_id string
-    int getTableNum(String id) {
-      final match = RegExp(r'\d+').firstMatch(id);
-      return match != null ? int.parse(match.group(0)!) : 0;
-    }
+    // Sort occupied first, then unoccupied, both by table_id numerically
+    tables.sort((a, b) {
+      final bool aOccupied = a['status'] == 'occupied';
+      final bool bOccupied = b['status'] == 'occupied';
+      
+      if (aOccupied && !bOccupied) return -1;
+      if (!aOccupied && bOccupied) return 1;
+      
+      // Extract integer from table_id string
+      int getTableNum(String id) {
+        final match = RegExp(r'\d+').firstMatch(id);
+        return match != null ? int.parse(match.group(0)!) : 0;
+      }
+      
+      final numA = getTableNum(a['table_id'] as String);
+      final numB = getTableNum(b['table_id'] as String);
+      
+      if (numA != numB) {
+        return numA.compareTo(numB);
+      }
+      
+      // Fallback to string comparison if numbers are the same or not found
+      return (a['table_id'] as String).compareTo(b['table_id'] as String);
+    });
     
-    final numA = getTableNum(a['table_id'] as String);
-    final numB = getTableNum(b['table_id'] as String);
-    
-    if (numA != numB) {
-      return numA.compareTo(numB);
-    }
-    
-    // Fallback to string comparison if numbers are the same or not found
-    return (a['table_id'] as String).compareTo(b['table_id'] as String);
-  });
-  
-  return tables;
+    return tables;
+  }
+
+  Future<void> fetchTables() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => build());
+  }
+
+  Future<void> addTablesBulk(List<Map<String, dynamic>> tables) async {
+    final dio = ref.read(dioProvider);
+    final branchId = ref.read(selectedBranchProvider) ?? 1;
+    await dio.post('/billing/tables/bulk', data: tables, queryParameters: {'branch_id': branchId});
+    await fetchTables();
+  }
+
+  Future<void> updateTable(String tableId, Map<String, dynamic> data) async {
+    final dio = ref.read(dioProvider);
+    await dio.put('/billing/tables/$tableId', data: data);
+    await fetchTables();
+  }
+
+  Future<void> deleteTable(String tableId) async {
+    final dio = ref.read(dioProvider);
+    await dio.delete('/billing/tables/$tableId');
+    await fetchTables();
+  }
+}
+
+final posTablesProvider = AsyncNotifierProvider<PosTablesNotifier, List<Map<String, dynamic>>>(() {
+  return PosTablesNotifier();
 });
 
 class CartItemModel {
@@ -200,6 +232,8 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
       state = [];
       // Refresh table status
       _ref.invalidate(posTablesProvider);
+      // Refresh inventory stock
+      _ref.invalidate(inventoryStockProvider);
       
     } catch (e) {
       throw Exception("Checkout failed: $e");
