@@ -18,14 +18,14 @@ app.add_middleware(
 )
 
 # Import routers
-from routers import auth, menu, staff, expenses, dashboard, groceries, billing, chat, reports, branches, kitchen
+from routers import auth, menu, staff, expenses, home, groceries, billing, chat, reports, branches, kitchen
 
 app.include_router(auth.router)
 app.include_router(branches.router)
 app.include_router(menu.router)
 app.include_router(staff.router)
 app.include_router(expenses.router)
-app.include_router(dashboard.router)
+app.include_router(home.router)
 app.include_router(groceries.router)
 app.include_router(billing.router)
 app.include_router(chat.router)

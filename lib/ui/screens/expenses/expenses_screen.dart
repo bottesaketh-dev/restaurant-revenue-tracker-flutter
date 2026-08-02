@@ -359,7 +359,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Total Filtered Cost', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                        expensesAsyncValue.when(
+                        expensesAsyncValue.when(skipLoadingOnRefresh: false, 
                           data: (expenses) {
                             double total = 0;
                             for (var e in expenses) {
@@ -383,7 +383,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           // DATA LIST
           Expanded(
             child: Card(
-              child: expensesAsyncValue.when(
+              child: expensesAsyncValue.when(skipLoadingOnRefresh: false, 
                 data: (expenses) {
                   if (expenses.isEmpty) {
                     return const Center(child: Text("No expenses found matching the current filters."));
@@ -437,3 +437,4 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
   }
 }
+

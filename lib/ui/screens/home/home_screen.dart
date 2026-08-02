@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/dashboard_provider.dart';
+import '../../../core/home_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/currency_formatter.dart';
 
-class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dashboardAsync = ref.watch(dashboardProvider);
+    final dashboardAsync = ref.watch(homeProvider);
     final now = DateTime.now();
     final displayDate = DateFormat('EEEE, MMMM d, yyyy').format(now);
 
@@ -43,7 +43,7 @@ class DashboardScreen extends ConsumerWidget {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Refresh'),
                 onPressed: () {
-                  ref.refresh(dashboardProvider);
+                  ref.refresh(homeProvider);
                 },
               ),
             ],
@@ -539,3 +539,4 @@ class _PaymentSplitChip extends StatelessWidget {
     );
   }
 }
+
