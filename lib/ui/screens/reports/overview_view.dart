@@ -4,17 +4,17 @@ import '../../../core/reports_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/currency_formatter.dart';
 
-class ReportsDashboardView extends ConsumerWidget {
-  const ReportsDashboardView({super.key});
+class OverviewView extends ConsumerWidget {
+  const OverviewView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dashboardAsync = ref.watch(reportsDashboardProvider);
+    final dashboardAsync = ref.watch(reportsOverviewProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        dashboardAsync.when(
+        dashboardAsync.when(skipLoadingOnRefresh: false, 
           data: (data) => Row(
             children: [
               Expanded(
@@ -56,7 +56,7 @@ class ReportsDashboardView extends ConsumerWidget {
         ),
         const SizedBox(height: 32),
         Expanded(
-          child: dashboardAsync.when(
+          child: dashboardAsync.when(skipLoadingOnRefresh: false, 
             data: (data) {
               final recentBills = List<Map<String, dynamic>>.from(data['recent_bills']);
               final recentExpenses = List<Map<String, dynamic>>.from(data['recent_expenses']);
@@ -462,3 +462,6 @@ class _KpiCard extends StatelessWidget {
     );
   }
 }
+
+
+

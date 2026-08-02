@@ -17,6 +17,19 @@ class KitchenScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kitchen Inventory & Recipes'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+              onPressed: () {
+                ref.refresh(inventoryStockProvider);
+                ref.refresh(menuProvider);
+              },
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(70),
           child: Padding(
@@ -80,7 +93,7 @@ class _RecipesTab extends ConsumerWidget {
     final searchQuery = ref.watch(kitchenSearchQueryProvider);
     final selectedCategory = ref.watch(kitchenSelectedCategoryProvider);
 
-    return menuItemsAsync.when(
+    return menuItemsAsync.when(skipLoadingOnRefresh: false, 
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (menuItems) {
@@ -237,7 +250,7 @@ class _RecipeDetailsView extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          recipeAsync.when(
+          recipeAsync.when(skipLoadingOnRefresh: false, 
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, stack) => Text('Error: $err'),
             data: (ingredients) {
@@ -246,7 +259,7 @@ class _RecipeDetailsView extends ConsumerWidget {
                     style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic));
               }
 
-              return groceriesAsync.when(
+              return groceriesAsync.when(skipLoadingOnRefresh: false, 
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => const Text('Error loading groceries'),
                 data: (groceries) {
@@ -288,11 +301,11 @@ class _InventoryTab extends ConsumerWidget {
     final inventoryAsync = ref.watch(inventoryStockProvider);
     final groceriesAsync = ref.watch(groceryItemsProvider);
 
-    return inventoryAsync.when(
+    return inventoryAsync.when(skipLoadingOnRefresh: false, 
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (inventory) {
-        return groceriesAsync.when(
+        return groceriesAsync.when(skipLoadingOnRefresh: false, 
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Error: $err')),
           data: (groceries) {
@@ -423,11 +436,11 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
             const Divider(),
             const SizedBox(height: 16),
             
-            recipeAsync.when(
+            recipeAsync.when(skipLoadingOnRefresh: false, 
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Text('Error loading recipe: $err'),
               data: (_) {
-                return groceriesAsync.when(
+                return groceriesAsync.when(skipLoadingOnRefresh: false, 
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Text('Error loading groceries: $err'),
                   data: (groceries) {
@@ -578,3 +591,4 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
     );
   }
 }
+

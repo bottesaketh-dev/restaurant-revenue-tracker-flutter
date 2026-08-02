@@ -322,3 +322,160 @@ def export_report(format: str = "csv", branch_id: Optional[int] = 0, start_date:
     response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
     response.headers["Content-Disposition"] = f"attachment; filename=restaurant_report.csv"
     return response
+from collections import defaultdict
+from sqlalchemy import case
+
+@router.get('/executive-summary')
+def get_executive_summary(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+    b_id = branch_id or 1
+    start_d, end_d = get_date_range(start_date, end_date)
+    
+    # KPIs
+    revenue = db.query(func.sum(models.Bill.total_amount)).filter(models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d, models.Bill.branch_id == b_id).scalar() or Decimal('0.00')
+    bill_count = db.query(func.count(models.Bill.bill_id)).filter(models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d, models.Bill.branch_id == b_id).scalar() or 0
+    avg_ticket = float(revenue) / bill_count if bill_count > 0 else 0.0
+    
+    exp = db.query(func.sum(models.Expense.amount)).filter(models.Expense.expense_date >= start_d, models.Expense.expense_date <= end_d, models.Expense.branch_id == b_id).scalar() or Decimal('0.00')
+    groc = db.query(func.sum(models.GroceryPurchase.total_price)).filter(models.GroceryPurchase.purchase_date >= start_d, models.GroceryPurchase.purchase_date <= end_d, models.GroceryPurchase.branch_id == b_id).scalar() or Decimal('0.00')
+    sal = db.query(func.sum(models.SalaryPayment.net_salary)).filter(models.SalaryPayment.payment_year == end_d.year, models.SalaryPayment.payment_month == end_d.month, models.SalaryPayment.payment_status == 'paid', models.SalaryPayment.branch_id == b_id).scalar() or Decimal('0.00')
+    
+    total_expenses = float(exp + groc)
+    net_profit = float(revenue) - total_expenses
+    
+    # Payment Split
+    pay_split = db.query(
+        func.sum(models.Bill.cash_amount).label('cash'),
+        func.sum(models.Bill.upi_amount).label('upi'),
+        func.sum(models.Bill.card_amount).label('card')
+    ).filter(models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d, models.Bill.branch_id == b_id).first()
+    
+    cash = float(pay_split.cash or 0.0)
+    upi = float(pay_split.upi or 0.0)
+    card = float(pay_split.card or 0.0)
+    
+    # Branch Comparison
+    branch_rev = db.query(models.Branch.name, func.sum(models.Bill.total_amount)).join(models.Bill, models.Branch.branch_id == models.Bill.branch_id).filter(models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d).group_by(models.Branch.name).all()
+    branches = [{'name': name, 'revenue': float(r or 0)} for name, r in branch_rev]
+    
+    return {
+        'kpis': {
+            'revenue': float(revenue),
+            'expenses': total_expenses,
+            'net_profit': net_profit,
+            'avg_ticket': avg_ticket
+        },
+        'payment_split': {'cash': cash, 'upi': upi, 'card': card},
+        'branches': branches
+    }
+
+@router.get('/sales-engineering')
+def get_sales_engineering(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+    b_id = branch_id or 1
+    start_d, end_d = get_date_range(start_date, end_date)
+    
+    # Top and Bottom Items
+    item_qty = db.query(
+        models.MenuItem.name, 
+        func.sum(models.OrderItem.quantity).label('qty')
+    ).join(models.OrderItem, models.MenuItem.menu_item_id == models.OrderItem.menu_item_id).join(models.Order, models.OrderItem.order_id == models.Order.order_id).filter(models.Order.branch_id == b_id, func.date(models.Order.created_at) >= start_d, func.date(models.Order.created_at) <= end_d).group_by(models.MenuItem.name).order_by(desc('qty')).all()
+    
+    top_items = [{'name': i.name, 'qty': i.qty} for i in item_qty[:10]]
+    bottom_items = [{'name': i.name, 'qty': i.qty} for i in item_qty[-10:]]
+    
+    # Veg vs Non-Veg Split
+    veg_split = db.query(
+        models.MenuItem.is_vegetarian,
+        func.sum(models.OrderItem.total_price)
+    ).join(models.OrderItem, models.MenuItem.menu_item_id == models.OrderItem.menu_item_id).join(models.Order, models.OrderItem.order_id == models.Order.order_id).filter(models.Order.branch_id == b_id, func.date(models.Order.created_at) >= start_d, func.date(models.Order.created_at) <= end_d).group_by(models.MenuItem.is_vegetarian).all()
+    
+    veg_rev = 0.0
+    non_veg_rev = 0.0
+    for is_veg, rev in veg_split:
+        if is_veg: veg_rev = float(rev or 0)
+        else: non_veg_rev = float(rev or 0)
+        
+    # Heatmap (Day of Week vs Hour)
+    heatmap_raw = db.query(
+        models.Bill.bill_date,
+        models.Bill.bill_time,
+        func.count(models.Bill.bill_id)
+    ).filter(models.Bill.branch_id == b_id, models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d).group_by(models.Bill.bill_date, models.Bill.bill_time).all()
+    
+    heatmap_data = defaultdict(int)
+    for d, t, c in heatmap_raw:
+        if d and t:
+            day_idx = d.weekday()
+            hour = t.hour
+            heatmap_data[f"{day_idx}_{hour}"] += c
+            
+    heatmap = [{'day': int(k.split('_')[0]), 'hour': int(k.split('_')[1]), 'count': v} for k, v in heatmap_data.items()]
+    
+    # Discount Impact
+    discount_sum = db.query(func.sum(models.Bill.discount_amount)).filter(models.Bill.branch_id == b_id, models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d).scalar() or Decimal('0.00')
+    subtotal_sum = db.query(func.sum(models.Bill.subtotal)).filter(models.Bill.branch_id == b_id, models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d).scalar() or Decimal('0.00')
+    
+    return {
+        'top_items': top_items,
+        'bottom_items': bottom_items,
+        'veg_split': {'veg': veg_rev, 'non_veg': non_veg_rev},
+        'heatmap': heatmap,
+        'discounts': {'discount_amount': float(discount_sum), 'subtotal': float(subtotal_sum)}
+    }
+
+@router.get('/inventory-supply')
+def get_inventory_supply(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+    b_id = branch_id or 1
+    start_d, end_d = get_date_range(start_date, end_date)
+    
+    # Stock vs Threshold (Assume 10 as safe threshold)
+    stock_raw = db.query(models.GroceryItem.product_name, models.InventoryStock.current_stock, models.GroceryItem.unit).join(models.InventoryStock, models.GroceryItem.grocery_item_id == models.InventoryStock.grocery_item_id).filter(models.GroceryItem.is_active == True).all()
+    stock = [{'item': s.product_name, 'current': float(s.current_stock or 0), 'threshold': 10.0, 'unit': s.unit} for s in stock_raw]
+    
+    # Spend by Vendor
+    vendor_spend = db.query(models.GroceryPurchase.vendor_name, func.sum(models.GroceryPurchase.total_price)).filter(models.GroceryPurchase.branch_id == b_id, models.GroceryPurchase.purchase_date >= start_d, models.GroceryPurchase.purchase_date <= end_d).group_by(models.GroceryPurchase.vendor_name).all()
+    vendors = [{'vendor': v.vendor_name or 'Unknown', 'spend': float(v[1] or 0)} for v in vendor_spend]
+    
+    return {
+        'stock': stock,
+        'vendors': vendors
+    }
+
+@router.get('/expenses-hr')
+def get_expenses_hr(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+    b_id = branch_id or 1
+    start_d, end_d = get_date_range(start_date, end_date)
+    
+    exp_cat = db.query(models.ExpenseCategory.name, func.sum(models.Expense.amount)).join(models.Expense, models.ExpenseCategory.expense_category_id == models.Expense.category_id).filter(models.Expense.branch_id == b_id, models.Expense.expense_date >= start_d, models.Expense.expense_date <= end_d).group_by(models.ExpenseCategory.name).all()
+    expenses = [{'category': e.name, 'amount': float(e[1] or 0)} for e in exp_cat]
+    
+    payroll = db.query(models.Employee.position, func.sum(models.SalaryPayment.net_salary)).join(models.SalaryPayment, models.Employee.employee_id == models.SalaryPayment.employee_id).filter(models.SalaryPayment.branch_id == b_id, models.SalaryPayment.payment_status == 'paid', models.SalaryPayment.payment_year == end_d.year, models.SalaryPayment.payment_month == end_d.month).group_by(models.Employee.position).all()
+    salaries = [{'position': p.position, 'amount': float(p[1] or 0)} for p in payroll]
+    
+    employees = db.query(models.Employee.first_name, models.Employee.last_name, models.Employee.position, models.Employee.is_active, models.Employee.join_date).filter(models.Employee.branch_id == b_id).all()
+    emp_status = [{'name': f"{e.first_name} {e.last_name}", 'position': e.position, 'active': e.is_active, 'join_date': e.join_date.strftime("%Y-%m-%d") if e.join_date else None} for e in employees]
+    
+    return {
+        'expenses': expenses,
+        'payroll': salaries,
+        'employees': emp_status
+    }
+
+@router.get('/operations')
+def get_operations(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+    b_id = branch_id or 1
+    start_d, end_d = get_date_range(start_date, end_date)
+    
+    rev_emp = db.query(models.User.username, func.sum(models.Bill.total_amount)).join(models.Bill, models.User.user_id == models.Bill.billed_by).filter(models.Bill.branch_id == b_id, models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d).group_by(models.User.username).all()
+    emp_rev = [{'username': r.username, 'revenue': float(r[1] or 0)} for r in rev_emp]
+    
+    tips = db.query(func.sum(models.Bill.tip_amount)).filter(models.Bill.branch_id == b_id, models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d).scalar() or Decimal('0.00')
+    
+    utilization = db.query(models.RestaurantTable.table_id, models.RestaurantTable.capacity, func.count(models.Bill.bill_id)).join(models.Bill, models.RestaurantTable.table_id == models.Bill.table_id).filter(models.Bill.branch_id == b_id, models.Bill.bill_date >= start_d, models.Bill.bill_date <= end_d).group_by(models.RestaurantTable.table_id, models.RestaurantTable.capacity).all()
+    table_util = [{'table': u.table_id, 'capacity': u.capacity, 'orders': u[2]} for u in utilization]
+    
+    return {
+        'employee_revenue': emp_rev,
+        'total_tips': float(tips),
+        'table_utilization': table_util
+    }
+

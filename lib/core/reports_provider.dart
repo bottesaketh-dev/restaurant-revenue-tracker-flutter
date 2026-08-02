@@ -6,8 +6,8 @@ import 'branch_provider.dart';
 // State provider for global date range filter
 final dateRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
 
-enum ReportsTab { dashboard, reports }
-final reportsTabProvider = StateProvider<ReportsTab>((ref) => ReportsTab.dashboard);
+enum ReportsTab { overview, executiveSummary, salesEngineering, inventorySupply, expensesHr, operations }
+final reportsTabProvider = StateProvider<ReportsTab>((ref) => ReportsTab.overview);
 
 Map<String, dynamic> _buildQueryParams(int? branchId, DateTimeRange? dateRange) {
   final queryParams = <String, dynamic>{};
@@ -27,7 +27,7 @@ final profitLossProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   return response.data;
 });
 
-final reportsDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final reportsOverviewProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
   final branchId = ref.watch(selectedBranchProvider);
   final dateRange = ref.watch(dateRangeProvider);
@@ -91,5 +91,47 @@ final branchComparisonProvider = FutureProvider<List<Map<String, dynamic>>>((ref
   // Do not pass branchId since this is for all branches
   final response = await dio.get('/reports/branch-comparison', queryParameters: _buildQueryParams(null, dateRange));
   return List<Map<String, dynamic>>.from(response.data);
+});
+
+
+
+final executiveSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final branchId = ref.watch(selectedBranchProvider);
+  final dateRange = ref.watch(dateRangeProvider);
+  final response = await dio.get('/reports/executive-summary', queryParameters: _buildQueryParams(branchId, dateRange));
+  return response.data as Map<String, dynamic>;
+});
+
+final salesEngineeringProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final branchId = ref.watch(selectedBranchProvider);
+  final dateRange = ref.watch(dateRangeProvider);
+  final response = await dio.get('/reports/sales-engineering', queryParameters: _buildQueryParams(branchId, dateRange));
+  return response.data as Map<String, dynamic>;
+});
+
+final inventorySupplyProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final branchId = ref.watch(selectedBranchProvider);
+  final dateRange = ref.watch(dateRangeProvider);
+  final response = await dio.get('/reports/inventory-supply', queryParameters: _buildQueryParams(branchId, dateRange));
+  return response.data as Map<String, dynamic>;
+});
+
+final expensesHrProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final branchId = ref.watch(selectedBranchProvider);
+  final dateRange = ref.watch(dateRangeProvider);
+  final response = await dio.get('/reports/expenses-hr', queryParameters: _buildQueryParams(branchId, dateRange));
+  return response.data as Map<String, dynamic>;
+});
+
+final operationsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final branchId = ref.watch(selectedBranchProvider);
+  final dateRange = ref.watch(dateRangeProvider);
+  final response = await dio.get('/reports/operations', queryParameters: _buildQueryParams(branchId, dateRange));
+  return response.data as Map<String, dynamic>;
 });
 

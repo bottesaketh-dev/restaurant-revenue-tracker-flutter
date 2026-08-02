@@ -454,10 +454,24 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                         'Groceries Management',
                         style: Theme.of(context).textTheme.displayLarge,
                       ),
-                      ElevatedButton.icon(
-                        onPressed: () => _showBulkAddGroceryModal(context, itemsMap, categoriesMap),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Grocery(s)'),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Refresh'),
+                            onPressed: () {
+                              ref.refresh(groceriesProvider);
+                              ref.refresh(groceryCategoriesProvider);
+                              ref.refresh(groceryItemsProvider);
+                            },
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            onPressed: () => _showBulkAddGroceryModal(context, itemsMap, categoriesMap),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Grocery(s)'),
+                          ),
+                        ],
                       )
                     ],
                   ),

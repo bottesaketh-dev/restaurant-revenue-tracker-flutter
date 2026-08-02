@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'theme/app_theme.dart';
 import 'ui/layouts/sidebar_layout.dart';
 import 'ui/screens/auth/login_screen.dart';
-import 'ui/screens/dashboard/dashboard_screen.dart';
+import 'ui/screens/home/home_screen.dart';
 import 'ui/screens/pos/pos_billing_screen.dart';
 import 'ui/screens/menu/menu_screen.dart';
 import 'ui/screens/staff/staff_screen.dart';
@@ -48,7 +48,7 @@ class FlavorsLedgerApp extends ConsumerWidget {
           routes: [
             GoRoute(
               path: '/home',
-              builder: (context, state) => const DashboardScreen(),
+              builder: (context, state) => const HomeScreen(),
             ),
             GoRoute(
               path: '/pos',
@@ -95,3 +95,4 @@ class FlavorsLedgerApp extends ConsumerWidget {
     );
   }
 }
+

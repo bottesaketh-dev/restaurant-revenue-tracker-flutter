@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api_client.dart';
 import 'branch_provider.dart';
 
-final dashboardDateRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
+final homeDateRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
 
-final dashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final homeProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
   final selectedBranch = ref.watch(selectedBranchProvider);
-  final dateRange = ref.watch(dashboardDateRangeProvider);
+  final dateRange = ref.watch(homeDateRangeProvider);
   
   final queryParams = <String, dynamic>{};
   if (selectedBranch != null) {
@@ -22,3 +22,4 @@ final dashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final response = await dio.get('/dashboard/summary', queryParameters: queryParams.isNotEmpty ? queryParams : null);
   return response.data;
 });
+

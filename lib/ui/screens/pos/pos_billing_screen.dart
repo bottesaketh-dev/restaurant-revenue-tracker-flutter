@@ -145,7 +145,7 @@ class _TablesGridView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(posTablesProvider).when(
+    return ref.watch(posTablesProvider).when(skipLoadingOnRefresh: false, 
       data: (tables) {
         if (tables.isEmpty) {
           return const Center(child: Text("No tables found."));
@@ -260,7 +260,7 @@ class _MenuOrderingView extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // Categories
-        ref.watch(menuProvider).when(
+        ref.watch(menuProvider).when(skipLoadingOnRefresh: false, 
           data: (items) {
             final activeItems = items.where((i) => i['is_available'] == true || i['is_available'] == 1).toList();
             final categories = activeItems.map((i) => i['category'] as String).toSet().toList();
@@ -289,7 +289,7 @@ class _MenuOrderingView extends ConsumerWidget {
         
         // Menu Grid
         Expanded(
-          child: ref.watch(menuProvider).when(
+          child: ref.watch(menuProvider).when(skipLoadingOnRefresh: false, 
             data: (items) {
               final filtered = items.where((item) {
                 final isActive = item['is_available'] == true || item['is_available'] == 1;
@@ -573,3 +573,4 @@ class _CartItemWidget extends ConsumerWidget {
     );
   }
 }
+
