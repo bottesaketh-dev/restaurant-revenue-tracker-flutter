@@ -33,7 +33,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     
     final authState = ref.read(authStateProvider);
     if (authState.isAuthenticated) {
-      context.go('/dashboard');
+      context.go('/home');
     }
   }
 

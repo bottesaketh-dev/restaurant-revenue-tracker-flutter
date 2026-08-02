@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/menu_provider.dart';
 import 'widgets/menu_item_dialog.dart';
+import 'package:intl/intl.dart';
+import '../../../core/currency_formatter.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
@@ -234,7 +236,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('₹ ${item['price']}', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+                            Text(CurrencyFormatter.format(item['price']), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
                             const SizedBox(width: 32),
                             Switch(
                               value: item['is_available'] ?? true,

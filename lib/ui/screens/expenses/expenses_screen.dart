@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/expenses_provider.dart';
 import 'package:intl/intl.dart';
+import '../../../core/currency_formatter.dart';
 
 class ExpensesScreen extends ConsumerStatefulWidget {
   const ExpensesScreen({super.key});
@@ -305,7 +306,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     context: context,
                     firstDate: DateTime(2020),
                     lastDate: DateTime.now(),
-                    initialEntryMode: DatePickerEntryMode.input,
                     initialDateRange: dateRange,
                   );
                   if (newRange != null) {
@@ -365,7 +365,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                             for (var e in expenses) {
                               total += double.tryParse(e['amount'].toString()) ?? 0;
                             }
-                            return Text('₹ ${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18));
+                            return Text(CurrencyFormatter.format(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18));
                           },
                           loading: () => const Text('Loading...'),
                           error: (_, __) => const Text('Error'),
@@ -408,7 +408,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('₹ ${exp['amount']}', style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            Text(CurrencyFormatter.format(exp['amount']), style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppTheme.onBackground,
                             )),

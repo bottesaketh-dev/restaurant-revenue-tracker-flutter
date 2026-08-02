@@ -27,13 +27,13 @@ class FlavorsLedgerApp extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     final router = GoRouter(
-      initialLocation: authState.isAuthenticated ? '/dashboard' : '/login',
+      initialLocation: authState.isAuthenticated ? '/home' : '/login',
       redirect: (context, state) {
         final isLoggedIn = authState.isAuthenticated;
         final isGoingToLogin = state.uri.toString() == '/login';
 
         if (!isLoggedIn && !isGoingToLogin) return '/login';
-        if (isLoggedIn && isGoingToLogin) return '/dashboard';
+        if (isLoggedIn && isGoingToLogin) return '/home';
         return null;
       },
       routes: [
@@ -47,7 +47,7 @@ class FlavorsLedgerApp extends ConsumerWidget {
           },
           routes: [
             GoRoute(
-              path: '/dashboard',
+              path: '/home',
               builder: (context, state) => const DashboardScreen(),
             ),
             GoRoute(

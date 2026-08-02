@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/pos_provider.dart';
 import '../../../../theme/app_theme.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/currency_formatter.dart';
 
 class CheckoutDialog extends ConsumerStatefulWidget {
   final String tableId;
@@ -58,7 +60,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
     if (_paymentMode == 'MIXED') {
       if ((mixedTotal - total).abs() > 0.01) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mixed payment amounts (₹${mixedTotal.toStringAsFixed(2)}) must equal total (₹${total.toStringAsFixed(2)})'))
+          SnackBar(content: Text('Mixed payment amounts (${CurrencyFormatter.format(mixedTotal)}) must equal total (${CurrencyFormatter.format(total)})'))
         );
         return;
       }
@@ -121,7 +123,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('${item.quantity}x ${item.menuItem['name']}'),
-                          Text('₹${((double.tryParse(item.menuItem['price'].toString()) ?? 0.0) * item.quantity).toStringAsFixed(2)}'),
+                          Text(CurrencyFormatter.format(((double.tryParse(item.menuItem['price'].toString()) ?? 0.0) * item.quantity))),
                         ],
                       ),
                     )),
@@ -131,7 +133,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Subtotal'),
-                        Text('₹${subtotal.toStringAsFixed(2)}'),
+                        Text(CurrencyFormatter.format(subtotal)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -139,7 +141,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Taxes (5%)'),
-                        Text('₹${taxes.toStringAsFixed(2)}'),
+                        Text(CurrencyFormatter.format(taxes)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -165,7 +167,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Grand Total', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                        Text('₹${total.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                        Text(CurrencyFormatter.format(total), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary)),
                       ],
                     ),
                     
@@ -185,7 +187,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                     
                     if (_paymentMode == 'MIXED') ...[
                       const SizedBox(height: 24),
-                      Text('Split Amounts (Remaining: ₹${(total - mixedTotal).toStringAsFixed(2)})', 
+                      Text('Split Amounts (Remaining: ${CurrencyFormatter.format(total - mixedTotal)})', 
                         style: TextStyle(color: (total - mixedTotal).abs() > 0.01 ? Colors.red : Colors.green, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
                       Row(

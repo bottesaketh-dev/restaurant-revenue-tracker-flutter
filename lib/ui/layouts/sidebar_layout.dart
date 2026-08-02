@@ -68,10 +68,10 @@ class SidebarLayout extends ConsumerWidget {
               children: [
                 _SidebarItem(
                   icon: Icons.dashboard_outlined,
-                  label: 'Dashboard',
-                  isSelected: currentPath == '/dashboard',
+                  label: 'Home',
+                  isSelected: currentPath == '/home',
                   isCollapsed: isCollapsed,
-                  onTap: () => context.go('/dashboard'),
+                  onTap: () => context.go('/home'),
                 ),
                 _SidebarItem(
                   icon: Icons.point_of_sale_outlined,

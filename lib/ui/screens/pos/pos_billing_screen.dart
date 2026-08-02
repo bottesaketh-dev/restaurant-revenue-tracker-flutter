@@ -5,6 +5,8 @@ import '../../../core/menu_provider.dart';
 import '../../../theme/app_theme.dart';
 import 'widgets/checkout_dialog.dart';
 import 'widgets/manage_tables_dialog.dart';
+import 'package:intl/intl.dart';
+import '../../../core/currency_formatter.dart';
 
 class PosBillingScreen extends ConsumerStatefulWidget {
   const PosBillingScreen({super.key});
@@ -81,16 +83,29 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
             ],
           ),
         ),
-        ElevatedButton.icon(
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (context) => const ManageTablesDialog(),
-            );
-          },
-          icon: const Icon(Icons.table_restaurant),
-          label: const Text('Manage Tables'),
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+              onPressed: () {
+                ref.refresh(posTablesProvider);
+                ref.refresh(menuProvider);
+              },
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => const ManageTablesDialog(),
+                );
+              },
+              icon: const Icon(Icons.table_restaurant),
+              label: const Text('Manage Tables'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            ),
+          ],
         ),
       ],
     );
@@ -247,7 +262,8 @@ class _MenuOrderingView extends ConsumerWidget {
         // Categories
         ref.watch(menuProvider).when(
           data: (items) {
-            final categories = items.map((i) => i['category'] as String).toSet().toList();
+            final activeItems = items.where((i) => i['is_available'] == true || i['is_available'] == 1).toList();
+            final categories = activeItems.map((i) => i['category'] as String).toSet().toList();
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -276,9 +292,10 @@ class _MenuOrderingView extends ConsumerWidget {
           child: ref.watch(menuProvider).when(
             data: (items) {
               final filtered = items.where((item) {
+                final isActive = item['is_available'] == true || item['is_available'] == 1;
                 final matchCat = selectedCategory == null || item['category'] == selectedCategory;
                 final matchSearch = item['name'].toString().toLowerCase().contains(searchQuery.toLowerCase());
-                return matchCat && matchSearch;
+                return isActive && matchCat && matchSearch;
               }).toList();
 
               return GridView.builder(
@@ -310,7 +327,7 @@ class _MenuOrderingView extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '₹${item['price']}',
+                                CurrencyFormatter.format(item['price']),
                                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                   color: AppTheme.primary,
                                   fontWeight: FontWeight.bold
@@ -419,7 +436,7 @@ class _CartPanel extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Subtotal', style: Theme.of(context).textTheme.bodyLarge),
-                Text('₹ ${subtotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+                Text(CurrencyFormatter.format(subtotal), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 16),
@@ -427,7 +444,7 @@ class _CartPanel extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Taxes (5%)', style: Theme.of(context).textTheme.bodyLarge),
-                Text('₹ ${taxes.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+                Text(CurrencyFormatter.format(taxes), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 24),
@@ -524,7 +541,7 @@ class _CartItemWidget extends ConsumerWidget {
                       )
                   ],
                 ),
-                Text('${item.quantity} x ₹${item.menuItem['price']}', style: Theme.of(context).textTheme.labelSmall),
+                Text('${item.quantity} x ${CurrencyFormatter.format(item.menuItem['price'])}', style: Theme.of(context).textTheme.labelSmall),
               ],
             ),
           ),

@@ -6,6 +6,9 @@ import 'branch_provider.dart';
 // State provider for global date range filter
 final dateRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
 
+enum ReportsTab { dashboard, reports }
+final reportsTabProvider = StateProvider<ReportsTab>((ref) => ReportsTab.dashboard);
+
 Map<String, dynamic> _buildQueryParams(int? branchId, DateTimeRange? dateRange) {
   final queryParams = <String, dynamic>{};
   if (branchId != null) queryParams['branch_id'] = branchId;
@@ -21,6 +24,24 @@ final profitLossProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final branchId = ref.watch(selectedBranchProvider);
   final dateRange = ref.watch(dateRangeProvider);
   final response = await dio.get('/reports/profit-loss', queryParameters: _buildQueryParams(branchId, dateRange));
+  return response.data;
+});
+
+final reportsDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final branchId = ref.watch(selectedBranchProvider);
+  final dateRange = ref.watch(dateRangeProvider);
+  
+  final queryParams = <String, dynamic>{};
+  if (branchId != null) queryParams['branch_id'] = branchId;
+  
+  final start = dateRange?.start ?? DateTime.now().subtract(const Duration(days: 30));
+  final end = dateRange?.end ?? DateTime.now();
+  
+  queryParams['tables_start_date'] = start.toIso8601String().split('T')[0];
+  queryParams['tables_end_date'] = end.toIso8601String().split('T')[0];
+  
+  final response = await dio.get('/dashboard/summary', queryParameters: queryParams);
   return response.data;
 });
 
