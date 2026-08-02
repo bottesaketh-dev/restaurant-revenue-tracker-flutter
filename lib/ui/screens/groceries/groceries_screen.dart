@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/groceries_provider.dart';
 import 'package:intl/intl.dart';
+import '../../../core/currency_formatter.dart';
 
 class GroceriesScreen extends ConsumerStatefulWidget {
   const GroceriesScreen({super.key});
@@ -471,7 +472,6 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                             context: context,
                             firstDate: DateTime(2020),
                             lastDate: DateTime.now(),
-                            initialEntryMode: DatePickerEntryMode.input,
                             initialDateRange: currentDateRange,
                           );
                           if (newRange != null) {
@@ -532,7 +532,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                     for (var p in purchases) {
                                       total += double.tryParse(p['total_price'].toString()) ?? 0;
                                     }
-                                    return Text('₹ ${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18));
+                                    return Text(CurrencyFormatter.format(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18));
                                   },
                                   loading: () => const Text('Loading...'),
                                   error: (e, st) => const Text('Error', style: TextStyle(color: Colors.red)),
@@ -571,11 +571,11 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                   child: const Icon(Icons.shopping_cart_outlined, color: AppTheme.secondary),
                                 ),
                                 title: Text('${p['product_name']} (${p['unit']})', style: Theme.of(context).textTheme.headlineMedium),
-                                subtitle: Text('${p['purchase_date']} • Vendor: ${p['vendor_name'] ?? '-'} • Qty: ${p['quantity']} @ ₹${p['unit_price']}'),
+                                subtitle: Text('${p['purchase_date']} • Vendor: ${p['vendor_name'] ?? '-'} • Qty: ${p['quantity']} @ ${CurrencyFormatter.format(p['unit_price'])}'),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('₹ ${p['total_price']}', style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    Text(CurrencyFormatter.format(p['total_price']), style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: AppTheme.onBackground,
                                     )),

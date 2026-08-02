@@ -2,6 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 
+enum KitchenTab { recipes, stock }
+
+final kitchenTabProvider = StateProvider<KitchenTab>((ref) => KitchenTab.recipes);
+final kitchenSearchQueryProvider = StateProvider<String>((ref) => '');
+final kitchenSelectedCategoryProvider = StateProvider<String?>((ref) => null);
+
 final inventoryStockProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dio = ref.watch(dioProvider);
   try {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/staff_provider.dart';
 import 'package:intl/intl.dart';
+import '../../../core/currency_formatter.dart';
 
 class StaffScreen extends ConsumerStatefulWidget {
   const StaffScreen({super.key});
@@ -287,7 +288,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Base Salary: ₹$base', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Base Salary: ${CurrencyFormatter.format(base)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     TextFormField(
                       initialValue: formData['bonus'],
@@ -316,7 +317,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                       onChanged: (v) => formData['payment_mode'] = v,
                     ),
                     const SizedBox(height: 24),
-                    Text('Net Salary to Pay: ₹$net', style: const TextStyle(fontSize: 18, color: AppTheme.primary, fontWeight: FontWeight.bold)),
+                    Text('Net Salary to Pay: ${CurrencyFormatter.format(net)}', style: const TextStyle(fontSize: 18, color: AppTheme.primary, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -348,9 +349,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final salaryPaymentsAsync = ref.watch(salaryPaymentsProvider);
     final selectedMonthYear = ref.watch(salaryMonthYearProvider);
 
-    return DefaultTabController(
-      length: 2,
-      child: Padding(
+    final currentTab = ref.watch(staffTabProvider);
+
+    return Padding(
         padding: const EdgeInsets.all(32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,24 +384,29 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            Container(
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-              ),
-              child: TabBar(
-                indicatorColor: AppTheme.primary,
-                labelColor: AppTheme.primary,
-                unselectedLabelColor: Colors.grey.shade600,
-                tabs: const [
-                  Tab(text: 'Employee Register'),
-                  Tab(text: 'Payroll Settlements'),
-                ],
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildToggleBtn('Employee Register', StaffTab.register, currentTab),
+                      _buildToggleBtn('Payroll Settlements', StaffTab.payroll, currentTab),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: TabBarView(
-                children: [
+              child: currentTab == StaffTab.register ?
                   // Tab 1: Employee Register
                   Card(
                     child: staffAsyncValue.when(
@@ -425,7 +431,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('₹ ${employee['monthly_salary']}/mo', style: Theme.of(context).textTheme.bodyLarge),
+                                  Text('${CurrencyFormatter.format(employee['monthly_salary'])}/mo', style: Theme.of(context).textTheme.bodyLarge),
                                   const SizedBox(width: 16),
                                   IconButton(
                                     icon: const Icon(Icons.edit, color: AppTheme.primary),
@@ -468,9 +474,8 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                       loading: () => const Center(child: CircularProgressIndicator()),
                       error: (error, stackTrace) => Center(child: Text('Error: $error')),
                     ),
-                  ),
-                  
-                  // Tab 2: Payroll Settlements
+                  ) // Tab 1 Card
+                  : // Tab 2: Payroll Settlements
                   Card(
                     child: Column(
                       children: [
@@ -539,7 +544,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
-                                              isPaid ? '₹ ${payment!['net_salary']}' : '₹ ${employee['monthly_salary']}', 
+                                              isPaid ? CurrencyFormatter.format(payment!['net_salary']) : CurrencyFormatter.format(employee['monthly_salary']), 
                                               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                                 fontWeight: FontWeight.bold,
                                                 color: isPaid ? Colors.green : null
@@ -576,11 +581,30 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                  ), // closes Card 2
+            ), // closes Expanded
+          ], // closes children of Column
+        ), // closes Column
+      ); // closes Padding
+  }
+
+  Widget _buildToggleBtn(String label, StaffTab tab, StaffTab currentTab) {
+    final isSelected = tab == currentTab;
+    return GestureDetector(
+      onTap: () => ref.read(staffTabProvider.notifier).state = tab,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey.shade700,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
         ),
       ),
     );

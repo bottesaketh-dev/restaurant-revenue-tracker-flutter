@@ -1,167 +1,115 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/dashboard_provider.dart';
+import '../../../core/reports_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/currency_formatter.dart';
 
-class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
+class ReportsDashboardView extends ConsumerWidget {
+  const ReportsDashboardView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dashboardAsync = ref.watch(dashboardProvider);
-    final now = DateTime.now();
-    final displayDate = DateFormat('EEEE, MMMM d, yyyy').format(now);
+    final dashboardAsync = ref.watch(reportsDashboardProvider);
 
-    return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        dashboardAsync.when(
+          data: (data) => Row(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Owner Dashboard',
-                    style: Theme.of(context).textTheme.displayLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    displayDate,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: _KpiCard(
+                  title: 'CASH INFLOW',
+                  value: CurrencyFormatter.format(data['inflow'], decimalDigits: 0),
+                  icon: Icons.arrow_upward,
+                  color: AppTheme.primary,
+                  percentage: '${data['inflow_pct'] >= 0 ? '+' : ''}${data['inflow_pct']}%',
+                  percentageColor: data['inflow_pct'] >= 0 ? AppTheme.primaryContainer : AppTheme.error,
+                ),
               ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-                onPressed: () {
-                  ref.refresh(dashboardProvider);
-                },
+              const SizedBox(width: 24),
+              Expanded(
+                child: _KpiCard(
+                  title: 'CASH OUTFLOW',
+                  value: CurrencyFormatter.format(data['outflow'], decimalDigits: 0),
+                  icon: Icons.arrow_downward,
+                  color: AppTheme.error,
+                  percentage: '${data['outflow_pct'] >= 0 ? '+' : ''}${data['outflow_pct']}%',
+                  percentageColor: data['outflow_pct'] >= 0 ? AppTheme.error : AppTheme.primaryContainer,
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: _KpiCard(
+                  title: 'NET CASHFLOW',
+                  value: CurrencyFormatter.format(data['net'], decimalDigits: 0),
+                  icon: Icons.account_balance,
+                  color: AppTheme.secondary,
+                  percentage: '${data['net_pct'] >= 0 ? '+' : ''}${data['net_pct']}%',
+                  percentageColor: data['net_pct'] >= 0 ? AppTheme.primary : AppTheme.error,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
-          dashboardAsync.when(
-            skipLoadingOnRefresh: false,
-            data: (data) => Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      _KpiCard(
-                        title: 'CASH INFLOW',
-                        value: CurrencyFormatter.format(data['inflow'], decimalDigits: 0),
-                        icon: Icons.arrow_upward,
-                        color: AppTheme.primary,
-                        percentage: '${data['inflow_pct'] >= 0 ? '+' : ''}${data['inflow_pct']}%',
-                        percentageColor: data['inflow_pct'] >= 0 ? AppTheme.primaryContainer : AppTheme.error,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _PaymentSplitChip('Cash', data['cash_inflow'])),
-                          const SizedBox(width: 8),
-                          Expanded(child: _PaymentSplitChip('UPI', data['upi_inflow'])),
-                          const SizedBox(width: 8),
-                          Expanded(child: _PaymentSplitChip('Card', data['card_inflow'])),
-                        ],
-                      )
-                    ],
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(child: Text('Error: $e')),
+        ),
+        const SizedBox(height: 32),
+        Expanded(
+          child: dashboardAsync.when(
+            data: (data) {
+              final recentBills = List<Map<String, dynamic>>.from(data['recent_bills']);
+              final recentExpenses = List<Map<String, dynamic>>.from(data['recent_expenses']);
+              final recentGroceries = List<Map<String, dynamic>>.from(data['recent_groceries']);
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _BillsTableCard(bills: recentBills),
                   ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'CASH OUTFLOW',
-                    value: CurrencyFormatter.format(data['outflow'], decimalDigits: 0),
-                    icon: Icons.arrow_downward,
-                    color: AppTheme.error,
-                    percentage: '${data['outflow_pct'] >= 0 ? '+' : ''}${data['outflow_pct']}%',
-                    percentageColor: data['outflow_pct'] >= 0 ? AppTheme.error : AppTheme.primaryContainer,
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: _GenericTableCard(
+                            title: 'Recent Expenses',
+                            columns: const ['Date', 'Desc', 'Amount', 'Mode'],
+                            rows: recentExpenses.map((e) => <String>[
+                              e['date']?.toString() ?? '',
+                              e['description']?.toString() ?? '',
+                              CurrencyFormatter.format(e['amount'] ?? 0),
+                              e['payment_mode']?.toString() ?? '',
+                            ]).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Expanded(
+                          child: _GenericTableCard(
+                            title: 'Recent Groceries',
+                            columns: const ['Date', 'Item Name', 'Qty', 'Amount'],
+                            rows: recentGroceries.map((g) => <String>[
+                              g['date']?.toString() ?? '',
+                              g['item_name']?.toString() ?? '',
+                              (g['quantity'] ?? 0).toString(),
+                              CurrencyFormatter.format(g['amount'] ?? 0),
+                            ]).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'NET CASHFLOW',
-                    value: CurrencyFormatter.format(data['net'], decimalDigits: 0),
-                    icon: Icons.account_balance,
-                    color: AppTheme.secondary,
-                    percentage: '${data['net_pct'] >= 0 ? '+' : ''}${data['net_pct']}%',
-                    percentageColor: data['net_pct'] >= 0 ? AppTheme.primary : AppTheme.error,
-                  ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, st) => Center(child: Text('Error: $e')),
           ),
-          const SizedBox(height: 32),
-          Expanded(
-            child: dashboardAsync.when(
-              skipLoadingOnRefresh: false,
-              data: (data) {
-                final recentBills = List<Map<String, dynamic>>.from(data['recent_bills']);
-                final recentExpenses = List<Map<String, dynamic>>.from(data['recent_expenses']);
-                final recentGroceries = List<Map<String, dynamic>>.from(data['recent_groceries']);
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: _BillsTableCard(bills: recentBills),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: _GenericTableCard(
-                              title: 'Today\'s Expenses',
-                              columns: const ['Date', 'Desc', 'Amount', 'Mode'],
-                              rows: recentExpenses.map((e) => <String>[
-                                e['date']?.toString() ?? '',
-                                e['description']?.toString() ?? '',
-                                CurrencyFormatter.format(e['amount'] ?? 0),
-                                e['payment_mode']?.toString() ?? '',
-                              ]).toList(),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Expanded(
-                            child: _GenericTableCard(
-                              title: 'Today\'s Groceries',
-                              columns: const ['Date', 'Item Name', 'Qty', 'Amount'],
-                              rows: recentGroceries.map((g) => <String>[
-                                g['date']?.toString() ?? '',
-                                g['item_name']?.toString() ?? '',
-                                (g['quantity'] ?? 0).toString(),
-                                CurrencyFormatter.format(g['amount'] ?? 0),
-                              ]).toList(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => Center(child: Text('Error: $e')),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -184,7 +132,7 @@ class _BillsTableCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Today\'s Bills', style: Theme.of(context).textTheme.headlineMedium),
+                  Text('Recent Bills', style: Theme.of(context).textTheme.headlineMedium),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
@@ -311,7 +259,7 @@ class _BillsTableCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Today\'s Bills', style: Theme.of(context).textTheme.headlineMedium),
+                Text('Recent Bills', style: Theme.of(context).textTheme.headlineMedium),
                 IconButton(
                   icon: const Icon(Icons.fullscreen),
                   onPressed: () => _showFullScreen(context),
@@ -510,31 +458,6 @@ class _KpiCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PaymentSplitChip extends StatelessWidget {
-  final String label;
-  final double amount;
-  const _PaymentSplitChip(this.label, this.amount);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(CurrencyFormatter.format(amount, decimalDigits: 0), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black87)),
-        ],
       ),
     );
   }

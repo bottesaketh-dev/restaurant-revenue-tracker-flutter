@@ -3,8 +3,10 @@ import '../../../theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/reports_provider.dart';
 import 'package:intl/intl.dart';
+import '../../../core/currency_formatter.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'dart:html' as html;
+import 'package:url_launcher/url_launcher.dart';
+import 'reports_dashboard_view.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -19,69 +21,70 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentTab = ref.watch(reportsTabProvider);
+    
     return Container(
       color: Colors.transparent, // Inherit light background
       padding: const EdgeInsets.all(32.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(context),
+          _buildHeader(context, currentTab),
           const SizedBox(height: 32),
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildKpiRow(context),
-                  const SizedBox(height: 24),
-                  _buildSalesTrendChart(context),
-                  const SizedBox(height: 24),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _buildCategoryRevenueDonutChart(context),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: _buildTopItemsList(context),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: _buildExpenseBreakdownDonutChart(context),
-                      ),
-                    ],
+            child: currentTab == ReportsTab.dashboard
+                ? const ReportsDashboardView()
+                : SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildKpiRow(context),
+                        const SizedBox(height: 24),
+                        _buildSalesTrendChart(context),
+                        const SizedBox(height: 24),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildCategoryRevenueDonutChart(context),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: _buildTopItemsList(context),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: _buildExpenseBreakdownDonutChart(context),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 100),
-                ],
-              ),
-            ),
           )
         ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, ReportsTab currentTab) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Command Center',
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Global Multi-Branch Intelligence Dashboard',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
-            ),
-          ],
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildToggleBtn('Overview', ReportsTab.dashboard, currentTab),
+              _buildToggleBtn('Reports', ReportsTab.reports, currentTab),
+            ],
+          ),
         ),
         Row(
           children: [
@@ -98,7 +101,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   context: context,
                   firstDate: DateTime(2020),
                   lastDate: DateTime.now(),
-                  initialEntryMode: DatePickerEntryMode.input,
                   initialDateRange: currentRange ?? DateTimeRange(
                     start: DateTime.now().subtract(const Duration(days: 30)),
                     end: DateTime.now(),
@@ -128,7 +130,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   final end = DateFormat('yyyy-MM-dd').format(range.end);
                   url += '&start_date=$start&end_date=$end';
                 }
-                html.window.open(url, '_blank');
+                launchUrl(Uri.parse(url));
               },
               itemBuilder: (context) => [
                 const PopupMenuItem(value: 'pdf', child: Text('Export as PDF')),
@@ -151,6 +153,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ],
         )
       ],
+    );
+  }
+
+  Widget _buildToggleBtn(String label, ReportsTab tab, ReportsTab currentTab) {
+    final isSelected = tab == currentTab;
+    return GestureDetector(
+      onTap: () {
+        ref.read(reportsTabProvider.notifier).state = tab;
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 16,
+          ),
+        ),
+      ),
     );
   }
 
@@ -179,16 +205,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Widget _buildKpiRow(BuildContext context) {
     return ref.watch(metricsSummaryProvider).when(
       data: (data) {
-        final currencyFormatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
         return Row(
           children: [
-            Expanded(child: _buildGlassMetricCard('Total Revenue', currencyFormatter.format(data['revenue']), Icons.auto_graph, const [Color(0xFF00C9FF), Color(0xFF92FE9D)])),
+            Expanded(child: _buildGlassMetricCard('Total Revenue', CurrencyFormatter.format(data['revenue']), Icons.auto_graph, const [Color(0xFF00C9FF), Color(0xFF92FE9D)])),
             const SizedBox(width: 16),
-            Expanded(child: _buildGlassMetricCard('Net Profit', currencyFormatter.format(data['net_profit']), Icons.account_balance_wallet, const [Color(0xFFF54EA2), Color(0xFFFF7676)])),
+            Expanded(child: _buildGlassMetricCard('Net Profit', CurrencyFormatter.format(data['net_profit']), Icons.account_balance_wallet, const [Color(0xFFF54EA2), Color(0xFFFF7676)])),
             const SizedBox(width: 16),
-            Expanded(child: _buildGlassMetricCard('Total Expenses', currencyFormatter.format(data['expenses']), Icons.money_off, const [Color(0xFFFF9A44), Color(0xFFFC6076)])),
+            Expanded(child: _buildGlassMetricCard('Total Expenses', CurrencyFormatter.format(data['expenses']), Icons.money_off, const [Color(0xFFFF9A44), Color(0xFFFC6076)])),
             const SizedBox(width: 16),
-            Expanded(child: _buildGlassMetricCard('Avg Order Value', currencyFormatter.format(data['avg_order_value']), Icons.analytics, const [Color(0xFF6A11CB), Color(0xFF2575FC)])),
+            Expanded(child: _buildGlassMetricCard('Avg Order Value', CurrencyFormatter.format(data['avg_order_value']), Icons.analytics, const [Color(0xFF6A11CB), Color(0xFF2575FC)])),
           ],
         );
       },
@@ -319,10 +344,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
-                          reservedSize: 40,
+                          reservedSize: 60,
                           getTitlesWidget: (value, meta) {
                             if (value == 0) return const Text('');
-                            return Text('${(value / 1000).toStringAsFixed(0)}k', style: TextStyle(fontSize: 10, color: Colors.grey[600]));
+                            return Text(CurrencyFormatter.format(value, decimalDigits: 0), style: TextStyle(fontSize: 10, color: Colors.grey[600]));
                           },
                         ),
                       ),
@@ -346,7 +371,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                     borderData: FlBorderData(show: false),
                     minX: 0,
-                    maxX: (data.length - 1).toDouble(),
+                    maxX: data.isEmpty ? 1 : (data.length > 1 ? (data.length - 1).toDouble() : 1),
                     minY: 0,
                     maxY: maxAmt * 1.2,
                     lineTouchData: LineTouchData(
@@ -358,7 +383,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             
                             List<TextSpan> children = [
                               TextSpan(
-                                text: '₹${spot.y.toStringAsFixed(2)}\n',
+                                text: '${CurrencyFormatter.format(spot.y)}\n',
                                 style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold),
                               ),
                             ];
@@ -367,7 +392,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                               branchesMap.forEach((branchName, amount) {
                                 children.add(
                                   TextSpan(
-                                    text: '$branchName: ₹${(amount as num).toStringAsFixed(0)}\n',
+                                    text: '$branchName: ${CurrencyFormatter.format(amount, decimalDigits: 0)}\n',
                                     style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.normal),
                                   ),
                                 );
@@ -456,7 +481,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 
                 double total = 0;
                 for (var d in data) total += (d['revenue'] as num).toDouble();
-                final fmt = NumberFormat.compactCurrency(locale: 'en_IN', symbol: '₹');
 
                 return Column(
                   children: [
@@ -488,7 +512,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 
                                 String title;
                                 if (isTouched) {
-                                  title = '${e.value['category']}\n${fmt.format(val)}';
+                                  title = '${e.value['category']}\n${CurrencyFormatter.format(val, decimalDigits: 0)}';
                                 } else {
                                   title = '${((val/total)*100).toStringAsFixed(0)}%';
                                 }
@@ -512,7 +536,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text('Total', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                              Text(fmt.format(total), style: const TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)),
+                              Text(CurrencyFormatter.format(total, decimalDigits: 0), style: const TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)),
                             ],
                           )
                         ],
@@ -657,7 +681,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 
                 double total = 0;
                 for (var d in data) total += (d['amount'] as num).toDouble();
-                final fmt = NumberFormat.compactCurrency(locale: 'en_IN', symbol: '₹');
 
                 return Column(
                   children: [
@@ -689,7 +712,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 
                                 String title;
                                 if (isTouched) {
-                                  title = '${e.value['category']}\n${fmt.format(val)}';
+                                  title = '${e.value['category']}\n${CurrencyFormatter.format(val, decimalDigits: 0)}';
                                 } else {
                                   title = '${((val/total)*100).toStringAsFixed(0)}%';
                                 }
@@ -713,7 +736,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text('Outflow', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                              Text(fmt.format(total), style: const TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)),
+                              Text(CurrencyFormatter.format(total, decimalDigits: 0), style: const TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)),
                             ],
                           )
                         ],

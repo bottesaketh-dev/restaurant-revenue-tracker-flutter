@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 import 'branch_provider.dart';
+enum StaffTab { register, payroll }
+
+final staffTabProvider = StateProvider<StaffTab>((ref) => StaffTab.register);
 
 final staffProvider = StateNotifierProvider<StaffNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
   final branchId = ref.watch(selectedBranchProvider);

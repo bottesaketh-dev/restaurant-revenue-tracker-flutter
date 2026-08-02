@@ -246,8 +246,10 @@ def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_
             stock = db.query(models.InventoryStock).filter(models.InventoryStock.grocery_item_id == recipe.grocery_item_id).first()
             if stock:
                 # Deduct quantity required per item * number of items ordered
-                total_required = float(recipe.quantity_required) * float(item.quantity)
-                stock.current_stock -= total_required
+                # Both values must be Decimal since current_stock is Numeric
+                total_required = Decimal(str(float(recipe.quantity_required))) * Decimal(str(int(item.quantity)))
+                stock.current_stock = stock.current_stock - total_required
             
     db.commit()
     return {"status": "success", "bill_id": bill.bill_id}
+

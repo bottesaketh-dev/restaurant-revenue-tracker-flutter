@@ -4,51 +4,68 @@ import '../../../theme/app_theme.dart';
 import '../../../core/menu_provider.dart';
 import '../../../core/kitchen_provider.dart';
 import '../../../core/groceries_provider.dart';
+import 'package:intl/intl.dart';
+import '../../../core/currency_formatter.dart';
 
-class KitchenScreen extends ConsumerStatefulWidget {
+class KitchenScreen extends ConsumerWidget {
   const KitchenScreen({super.key});
 
   @override
-  ConsumerState<KitchenScreen> createState() => _KitchenScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentTab = ref.watch(kitchenTabProvider);
 
-class _KitchenScreenState extends ConsumerState<KitchenScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kitchen Inventory & Recipes'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: AppTheme.primary,
-          tabs: const [
-            Tab(text: 'Recipes'),
-            Tab(text: 'Kitchen Stock'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(70),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16.0, left: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildToggleBtn('Recipes', KitchenTab.recipes, currentTab, ref),
+                      _buildToggleBtn('Kitchen Stock', KitchenTab.stock, currentTab, ref),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _RecipesTab(),
-          _InventoryTab(),
-        ],
+      body: currentTab == KitchenTab.recipes ? const _RecipesTab() : const _InventoryTab(),
+    );
+  }
+
+  Widget _buildToggleBtn(String label, KitchenTab tab, KitchenTab currentTab, WidgetRef ref) {
+    final isSelected = tab == currentTab;
+    return GestureDetector(
+      onTap: () => ref.read(kitchenTabProvider.notifier).state = tab,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey.shade700,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -60,6 +77,8 @@ class _RecipesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final menuItemsAsync = ref.watch(menuProvider);
+    final searchQuery = ref.watch(kitchenSearchQueryProvider);
+    final selectedCategory = ref.watch(kitchenSelectedCategoryProvider);
 
     return menuItemsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -69,42 +88,194 @@ class _RecipesTab extends ConsumerWidget {
           return const Center(child: Text('No menu items found. Add some in the Menu Catalog.'));
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: menuItems.length,
-          itemBuilder: (context, index) {
-            final item = menuItems[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppTheme.primary.withOpacity(0.1),
-                  child: const Icon(Icons.restaurant_menu, color: AppTheme.primary),
-                ),
-                title: Text(item['name'] ?? 'Unnamed', style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('Price: ₹${item['price']}'),
-                trailing: ElevatedButton.icon(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => _RecipeDialog(menuItem: item),
-                    );
-                  },
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Manage Recipe'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        // Get unique categories
+        final categories = menuItems.map((item) => item['category'] as String).toSet().toList();
+
+        // Filter items
+        final filteredItems = menuItems.where((item) {
+          final matchesSearch = (item['name'] as String? ?? '').toLowerCase().contains(searchQuery.toLowerCase());
+          final matchesCategory = selectedCategory == null || item['category'] == selectedCategory;
+          return matchesSearch && matchesCategory;
+        }).toList();
+
+        return Column(
+          children: [
+            // Search & Category Filters
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search menu items...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                    ),
+                    onChanged: (val) => ref.read(kitchenSearchQueryProvider.notifier).state = val,
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _buildCategoryBtn('All', null, selectedCategory, ref),
+                        ...categories.map((cat) => _buildCategoryBtn(cat, cat, selectedCategory, ref)).toList(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+            
+            // Recipe List
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: filteredItems.length,
+                itemBuilder: (context, index) {
+                  final item = filteredItems[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.primary.withOpacity(0.1),
+                          child: const Icon(Icons.restaurant_menu, color: AppTheme.primary),
+                        ),
+                        title: Text(item['name'] ?? 'Unnamed', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Price: ${CurrencyFormatter.format(item['price'])} • ${item['category']}'),
+                        children: [
+                          _RecipeDetailsView(menuItem: item),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildCategoryBtn(String label, String? category, String? selectedCategory, WidgetRef ref) {
+    final isSelected = category == selectedCategory;
+    return GestureDetector(
+      onTap: () => ref.read(kitchenSelectedCategoryProvider.notifier).state = category,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : AppTheme.surface,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: isSelected ? AppTheme.primary : Colors.grey.shade300),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.grey.shade700,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecipeDetailsView extends ConsumerWidget {
+  final Map<String, dynamic> menuItem;
+  const _RecipeDetailsView({required this.menuItem});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recipeAsync = ref.watch(recipeProvider(menuItem['menu_item_id']));
+    final groceriesAsync = ref.watch(groceryItemsProvider);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Ingredients Required',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => _RecipeDialog(menuItem: menuItem),
+                  );
+                },
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Manage'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          recipeAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Text('Error: $err'),
+            data: (ingredients) {
+              if (ingredients.isEmpty) {
+                return const Text('No ingredients defined. Click Manage to add some.',
+                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic));
+              }
+
+              return groceriesAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => const Text('Error loading groceries'),
+                data: (groceries) {
+                  return Column(
+                    children: ingredients.map((ing) {
+                      final grocery = groceries.firstWhere(
+                        (g) => g['grocery_item_id'] == ing['grocery_item_id'],
+                        orElse: () => {'product_name': 'Unknown', 'unit': '-'},
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.circle, size: 8, color: AppTheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(grocery['product_name'] ?? 'Unknown')),
+                            Text('${ing['quantity_required']} ${grocery['unit']}',
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -129,39 +300,72 @@ class _InventoryTab extends ConsumerWidget {
               return const Center(child: Text('No stock data. Stock is updated when purchases are made.'));
             }
 
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      headingRowColor: MaterialStateProperty.all(AppTheme.primary.withOpacity(0.1)),
-                      columns: const [
-                        DataColumn(label: Text('Grocery Item', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataColumn(label: Text('Current Stock', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataColumn(label: Text('Unit', style: TextStyle(fontWeight: FontWeight.bold))),
-                      ],
-                      rows: inventory.map((stock) {
-                        final grocery = groceries.firstWhere(
-                          (g) => g['grocery_item_id'] == stock['grocery_item_id'],
-                          orElse: () => {'product_name': 'Unknown', 'unit': '-'},
-                        );
+            return GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 300,
+                childAspectRatio: 1.5,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: inventory.length,
+              itemBuilder: (context, index) {
+                final stock = inventory[index];
+                final grocery = groceries.firstWhere(
+                  (g) => g['grocery_item_id'] == stock['grocery_item_id'],
+                  orElse: () => {'product_name': 'Unknown', 'unit': '-'},
+                );
 
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(grocery['product_name'] ?? 'Unknown')),
-                            DataCell(Text('${stock['current_stock']}')),
-                            DataCell(Text(grocery['unit'] ?? '-')),
+                return Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: AppTheme.primary.withOpacity(0.1),
+                              child: const Icon(Icons.inventory_2, color: AppTheme.primary),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                grocery['product_name'] ?? 'Unknown',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
-                        );
-                      }).toList(),
+                        ),
+                        const Spacer(),
+                        const Text('Current Stock', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${stock['current_stock']}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppTheme.primary),
+                            ),
+                            const SizedBox(width: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4.0),
+                              child: Text(
+                                grocery['unit'] ?? '-',
+                                style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         );
@@ -181,26 +385,18 @@ class _RecipeDialog extends ConsumerStatefulWidget {
 class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
   List<Map<String, dynamic>> _ingredients = [];
   bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadExistingRecipe();
-  }
-
-  void _loadExistingRecipe() {
-    final recipeAsync = ref.read(recipeProvider(widget.menuItem['menu_item_id']));
-    recipeAsync.whenData((recipe) {
-      setState(() {
-        _ingredients = List<Map<String, dynamic>>.from(recipe);
-      });
-    });
-  }
+  bool _initialized = false;
 
   @override
   Widget build(BuildContext context) {
     final groceriesAsync = ref.watch(groceryItemsProvider);
     final recipeAsync = ref.watch(recipeProvider(widget.menuItem['menu_item_id']));
+
+    if (recipeAsync.hasValue && !_initialized) {
+      // Defer state update till after build to avoid errors, or just set it locally since it's used in the build below
+      _ingredients = List<Map<String, dynamic>>.from(recipeAsync.value!);
+      _initialized = true;
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

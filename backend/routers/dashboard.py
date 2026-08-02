@@ -21,6 +21,18 @@ def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date
         inflow_q = inflow_q.filter(models.Bill.branch_id == branch_id)
     total_inflow = inflow_q.scalar() or Decimal('0.00')
 
+    split_q = db.query(
+        func.sum(models.Bill.cash_amount),
+        func.sum(models.Bill.upi_amount),
+        func.sum(models.Bill.card_amount)
+    ).filter(
+        models.Bill.bill_date >= start_date,
+        models.Bill.bill_date <= end_date
+    )
+    if branch_id:
+        split_q = split_q.filter(models.Bill.branch_id == branch_id)
+    cash_val, upi_val, card_val = split_q.first()
+
     # Outflow: Groceries
     groceries_q = db.query(func.sum(models.GroceryPurchase.total_price)).filter(
         models.GroceryPurchase.purchase_date >= start_date,
@@ -52,6 +64,9 @@ def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date
     total_outflow = grocery_outflow + expense_outflow + salary_outflow
     return {
         "inflow": total_inflow,
+        "cash_inflow": cash_val or Decimal('0.00'),
+        "upi_inflow": upi_val or Decimal('0.00'),
+        "card_inflow": card_val or Decimal('0.00'),
         "outflow": total_outflow,
         "net": total_inflow - total_outflow
     }
@@ -66,54 +81,99 @@ def calc_pct(curr, prior):
     return 0.0
 
 @router.get("/summary")
-def get_dashboard_summary(branch_id: Optional[int] = None, db: Session = Depends(get_db)):
+def get_dashboard_summary(
+    branch_id: Optional[int] = None, 
+    tables_start_date: Optional[date] = None,
+    tables_end_date: Optional[date] = None,
+    db: Session = Depends(get_db)
+):
     today = date.today()
-    # Today's stats
-    start_curr = today
-    end_curr = today
+    if not tables_start_date:
+        tables_start_date = today
+    if not tables_end_date:
+        tables_end_date = today
 
-    # Yesterday's stats for percentage comparison
-    start_prior = today - timedelta(days=1)
-    end_prior = start_prior
+    start_curr = tables_start_date
+    end_curr = tables_end_date
+
+    duration = (end_curr - start_curr).days + 1
+    start_prior = start_curr - timedelta(days=duration)
+    end_prior = end_curr - timedelta(days=duration)
 
     curr_summary = get_cashflow_summary(db, branch_id, start_curr, end_curr)
     prior_summary = get_cashflow_summary(db, branch_id, start_prior, end_prior)
 
-    # Latest 10 bills
-    bills_q = db.query(models.Bill).order_by(models.Bill.created_at.desc())
+    # Latest 10 bills (filtered by date)
+    bills_q = db.query(models.Bill).filter(
+        models.Bill.bill_date >= tables_start_date,
+        models.Bill.bill_date <= tables_end_date
+    ).order_by(models.Bill.created_at.desc())
     if branch_id:
         bills_q = bills_q.filter(models.Bill.branch_id == branch_id)
-    recent_bills = bills_q.limit(10).all()
+    recent_bills = bills_q.all()
 
     # Latest 10 general expenses
-    expenses_q = db.query(models.Expense).order_by(models.Expense.expense_date.desc())
+    expenses_q = db.query(models.Expense).filter(
+        models.Expense.expense_date >= tables_start_date,
+        models.Expense.expense_date <= tables_end_date
+    ).order_by(models.Expense.expense_date.desc())
     if branch_id:
         expenses_q = expenses_q.filter(models.Expense.branch_id == branch_id)
-    recent_expenses = expenses_q.limit(10).all()
+    recent_expenses = expenses_q.all()
 
     # Latest 10 grocery expenses
-    groceries_q = db.query(models.GroceryPurchase).order_by(models.GroceryPurchase.created_at.desc())
+    groceries_q = db.query(models.GroceryPurchase, models.GroceryItem).join(
+        models.GroceryItem, models.GroceryPurchase.grocery_item_id == models.GroceryItem.grocery_item_id
+    ).filter(
+        models.GroceryPurchase.purchase_date >= tables_start_date,
+        models.GroceryPurchase.purchase_date <= tables_end_date
+    ).order_by(models.GroceryPurchase.created_at.desc())
     if branch_id:
         groceries_q = groceries_q.filter(models.GroceryPurchase.branch_id == branch_id)
-    recent_groceries = groceries_q.limit(10).all()
+    recent_groceries = groceries_q.all()
+
+    bills_data = []
+    for b in recent_bills:
+        # Fetch ordered items
+        bill_items = db.query(models.OrderItem, models.MenuItem).join(
+            models.MenuItem, models.OrderItem.menu_item_id == models.MenuItem.menu_item_id
+        ).filter(models.OrderItem.order_id == b.order_id).all()
+        
+        items_list = [
+            {
+                "name": item[1].name,
+                "quantity": item[0].quantity,
+                "price": float(item[0].unit_price),
+                "total": float(item[0].total_price)
+            } for item in bill_items
+        ]
+
+        bills_data.append({
+            "date": str(b.bill_date),
+            "time": str(b.bill_time),
+            "table_id": b.table_id,
+            "bill_id": b.bill_id,
+            "amount": float(b.total_amount),
+            "status": b.payment_status,
+            "payment_mode": b.payment_mode,
+            "tip_amount": float(b.tip_amount or 0),
+            "cash_amount": float(b.cash_amount or 0),
+            "upi_amount": float(b.upi_amount or 0),
+            "card_amount": float(b.card_amount or 0),
+            "items": items_list
+        })
 
     return {
         "inflow": float(curr_summary["inflow"]),
         "inflow_pct": calc_pct(curr_summary["inflow"], prior_summary["inflow"]),
+        "cash_inflow": float(curr_summary["cash_inflow"]),
+        "upi_inflow": float(curr_summary["upi_inflow"]),
+        "card_inflow": float(curr_summary["card_inflow"]),
         "outflow": float(curr_summary["outflow"]),
         "outflow_pct": calc_pct(curr_summary["outflow"], prior_summary["outflow"]),
         "net": float(curr_summary["net"]),
         "net_pct": calc_pct(curr_summary["net"], prior_summary["net"]),
-        "recent_bills": [
-            {
-                "date": str(b.bill_date),
-                "time": str(b.bill_time),
-                "table_id": b.table_id,
-                "bill_id": b.bill_id,
-                "amount": float(b.total_amount),
-                "status": b.payment_status
-            } for b in recent_bills
-        ],
+        "recent_bills": bills_data,
         "recent_expenses": [
             {
                 "date": str(e.expense_date),
@@ -124,10 +184,10 @@ def get_dashboard_summary(branch_id: Optional[int] = None, db: Session = Depends
         ],
         "recent_groceries": [
             {
-                "date": str(g.purchase_date),
-                "item_id": g.grocery_item_id,
-                "quantity": float(g.quantity),
-                "amount": float(g.total_price)
+                "date": str(g.GroceryPurchase.purchase_date),
+                "item_name": g.GroceryItem.product_name,
+                "quantity": float(g.GroceryPurchase.quantity),
+                "amount": float(g.GroceryPurchase.total_price)
             } for g in recent_groceries
         ]
     }
