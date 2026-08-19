@@ -85,8 +85,13 @@ def get_dashboard_summary(
     branch_id: Optional[int] = None, 
     tables_start_date: Optional[date] = None,
     tables_end_date: Optional[date] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(security.get_current_user_token)
 ):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     today = date.today()
     if not tables_start_date:
         tables_start_date = today

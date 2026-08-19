@@ -22,12 +22,12 @@ class _ExecutiveSummarySectionState extends ConsumerState<ExecutiveSummarySectio
       height: height,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )
@@ -133,9 +133,9 @@ class _ExecutiveSummarySectionState extends ConsumerState<ExecutiveSummarySectio
                                           },
                                         ),
                                       ),
-                                      leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                                     ),
                                     borderData: FlBorderData(show: false),
                                     barGroups: branches.asMap().entries.map((e) {
@@ -185,7 +185,7 @@ Widget _buildSalesTrendChart(BuildContext context) {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2575FC).withOpacity(0.1),
+                  color: const Color(0xFF2575FC).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text('Live Data', style: TextStyle(color: Color(0xFF2575FC), fontWeight: FontWeight.bold, fontSize: 12)),
@@ -222,8 +222,8 @@ Widget _buildSalesTrendChart(BuildContext context) {
                     ),
                     titlesData: FlTitlesData(
                       show: true,
-                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
@@ -322,8 +322,8 @@ Widget _buildSalesTrendChart(BuildContext context) {
                           show: true,
                           gradient: LinearGradient(
                             colors: [
-                              const Color(0xFF2575FC).withOpacity(0.15),
-                              const Color(0xFF2575FC).withOpacity(0.0),
+                              const Color(0xFF2575FC).withValues(alpha: 0.15),
+                              const Color(0xFF2575FC).withValues(alpha: 0.0),
                             ],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,

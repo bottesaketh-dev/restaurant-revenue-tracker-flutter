@@ -22,6 +22,32 @@ class TokenResponse(BaseModel):
     message: str
     user: dict
 
+# Users
+class UserBase(BaseModel):
+    username: str
+    email: str
+    role: str
+    branch_id: Optional[int] = None
+    is_active: bool = True
+
+class UserCreate(UserBase):
+    password: str
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    branch_id: Optional[int] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
+
+class UserResponse(UserBase):
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        from_attributes = True
+
 # Menu
 class MenuItemBase(BaseModel):
     name: str

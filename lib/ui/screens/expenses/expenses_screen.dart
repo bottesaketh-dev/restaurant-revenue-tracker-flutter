@@ -85,7 +85,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                   decoration: const InputDecoration(hintText: 'YYYY-MM-DD', isDense: true),
                                 )),
                                 DataCell(DropdownButtonFormField<int>(
-                                  value: categoriesMap.containsKey(formData[index]['category_id']) ? formData[index]['category_id'] : (categoriesMap.isNotEmpty ? categoriesMap.keys.first : null),
+                                  initialValue: categoriesMap.containsKey(formData[index]['category_id']) ? formData[index]['category_id'] : (categoriesMap.isNotEmpty ? categoriesMap.keys.first : null),
                                   items: [
                                     ...categoriesMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
                                     const DropdownMenuItem(value: -1, child: Text('+ Add New Category', style: TextStyle(color: Colors.blue))),
@@ -398,7 +398,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                         leading: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.secondaryContainer.withOpacity(0.2),
+                            color: AppTheme.secondaryContainer.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.payments_outlined, color: AppTheme.secondary),

@@ -17,20 +17,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import routers
-from routers import auth, menu, staff, expenses, home, groceries, billing, chat, reports, branches, kitchen
+from routers import (
+    auth,
+    menu,
+    staff,
+    expenses,
+    billing,
+    branches,
+    chat,
+    groceries,
+    kitchen,
+    home,
+    reports,
+    users
+)
 
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(branches.router)
+app.include_router(home.router)
 app.include_router(menu.router)
 app.include_router(staff.router)
 app.include_router(expenses.router)
-app.include_router(home.router)
-app.include_router(groceries.router)
 app.include_router(billing.router)
 app.include_router(chat.router)
-app.include_router(reports.router)
+app.include_router(groceries.router)
 app.include_router(kitchen.router)
+app.include_router(reports.router)
 
 @app.get("/")
 def read_root():

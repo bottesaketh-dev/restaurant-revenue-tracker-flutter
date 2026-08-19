@@ -4,7 +4,6 @@ import '../../../theme/app_theme.dart';
 import '../../../core/menu_provider.dart';
 import '../../../core/kitchen_provider.dart';
 import '../../../core/groceries_provider.dart';
-import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 
 class KitchenScreen extends ConsumerWidget {
@@ -160,7 +159,7 @@ class _RecipesTab extends ConsumerWidget {
                       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
                         leading: CircleAvatar(
-                          backgroundColor: AppTheme.primary.withOpacity(0.1),
+                          backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                           child: const Icon(Icons.restaurant_menu, color: AppTheme.primary),
                         ),
                         title: Text(item['name'] ?? 'Unnamed', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -340,7 +339,7 @@ class _InventoryTab extends ConsumerWidget {
                         Row(
                           children: [
                             CircleAvatar(
-                              backgroundColor: AppTheme.primary.withOpacity(0.1),
+                              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                               child: const Icon(Icons.inventory_2, color: AppTheme.primary),
                             ),
                             const SizedBox(width: 12),
@@ -475,7 +474,7 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
                                             border: OutlineInputBorder(),
                                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                           ),
-                                          value: ingredient['grocery_item_id'],
+                                          initialValue: ingredient['grocery_item_id'],
                                           items: groceries.map((g) {
                                             return DropdownMenuItem<String>(
                                               value: g['grocery_item_id'],

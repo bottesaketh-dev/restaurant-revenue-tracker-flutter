@@ -5,7 +5,6 @@ import '../../../core/menu_provider.dart';
 import '../../../theme/app_theme.dart';
 import 'widgets/checkout_dialog.dart';
 import 'widgets/manage_tables_dialog.dart';
-import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 
 class PosBillingScreen extends ConsumerStatefulWidget {

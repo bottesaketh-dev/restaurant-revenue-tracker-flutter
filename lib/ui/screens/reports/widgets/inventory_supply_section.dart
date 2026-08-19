@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/reports_provider.dart';
-import '../../../../core/currency_formatter.dart';
-import '../../../../theme/app_theme.dart';
 
 class InventorySupplySection extends ConsumerWidget {
   const InventorySupplySection({super.key});

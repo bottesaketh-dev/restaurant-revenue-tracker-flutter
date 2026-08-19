@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
-import models, schemas
+import models, schemas, security
 from typing import List, Optional
 from datetime import datetime, date
 import uuid
@@ -11,11 +11,19 @@ router = APIRouter(prefix="/api/v1/groceries", tags=["groceries"])
 # --- Categories ---
 
 @router.get("/categories", response_model=List[schemas.GroceryCategoryResponse])
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     return db.query(models.GroceryCategory).filter(models.GroceryCategory.is_active == True).all()
 
 @router.post("/categories", response_model=schemas.GroceryCategoryResponse)
-def create_category(category: schemas.GroceryCategoryCreate, db: Session = Depends(get_db)):
+def create_category(category: schemas.GroceryCategoryCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     db_cat = models.GroceryCategory(
         name=category.name,
         description=category.description,
@@ -29,14 +37,22 @@ def create_category(category: schemas.GroceryCategoryCreate, db: Session = Depen
 # --- Items ---
 
 @router.get("/items", response_model=List[schemas.GroceryItemResponse])
-def get_items(category_id: Optional[int] = None, db: Session = Depends(get_db)):
+def get_items(category_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     query = db.query(models.GroceryItem).filter(models.GroceryItem.is_active == True)
     if category_id:
         query = query.filter(models.GroceryItem.category_id == category_id)
     return query.all()
 
 @router.post("/items", response_model=schemas.GroceryItemResponse)
-def create_item(item: schemas.GroceryItemCreate, db: Session = Depends(get_db)):
+def create_item(item: schemas.GroceryItemCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     db_item = models.GroceryItem(
         grocery_item_id=uuid.uuid4().hex,
         product_name=item.product_name,
@@ -98,7 +114,11 @@ def get_purchases(
     return result
 
 @router.post("/purchases")
-def add_purchase(data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_db)):
+def add_purchase(data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     now = datetime.now()
     new_purchase = models.GroceryPurchase(
         purchase_date=data.purchase_date,
@@ -131,7 +151,11 @@ def add_purchase(data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_
     return new_purchase
 
 @router.post("/purchases/bulk")
-def add_purchase_bulk(purchases: List[schemas.GroceryPurchaseCreate], db: Session = Depends(get_db)):
+def add_purchase_bulk(purchases: List[schemas.GroceryPurchaseCreate], db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     now = datetime.now()
     db_purchases = []
     
@@ -166,7 +190,11 @@ def add_purchase_bulk(purchases: List[schemas.GroceryPurchaseCreate], db: Sessio
     return {"message": f"Successfully added {len(db_purchases)} groceries"}
 
 @router.put("/purchases/{purchase_id}")
-def update_purchase(purchase_id: int, data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_db)):
+def update_purchase(purchase_id: int, data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     db_purchase = db.query(models.GroceryPurchase).filter(models.GroceryPurchase.grocery_purchase_id == purchase_id).first()
     if not db_purchase:
         raise HTTPException(status_code=404, detail="Purchase not found")
@@ -184,7 +212,11 @@ def update_purchase(purchase_id: int, data: schemas.GroceryPurchaseCreate, db: S
     return db_purchase
 
 @router.delete("/purchases/{purchase_id}")
-def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
+def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     db_purchase = db.query(models.GroceryPurchase).filter(models.GroceryPurchase.grocery_purchase_id == purchase_id).first()
     if not db_purchase:
         raise HTTPException(status_code=404, detail="Purchase not found")

@@ -16,8 +16,11 @@ def get_expenses(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = branch_id or token_data.get("branch_id")
-    
+    user_role = token_data.get("role")
+    user_branch_id = token_data.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
+    b_id = branch_id
     query = db.query(models.Expense)
     if b_id:
         query = query.filter(models.Expense.branch_id == b_id)

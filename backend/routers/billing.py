@@ -1,21 +1,29 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
-import models, schemas
+import models, schemas, security
 from typing import List, Optional
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
 @router.get("/tables", response_model=List[schemas.TableResponse])
-def get_tables(branch_id: Optional[int] = None, db: Session = Depends(get_db)):
+def get_tables(branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     query = db.query(models.RestaurantTable).filter(models.RestaurantTable.is_active == True)
     if branch_id:
         query = query.filter(models.RestaurantTable.branch_id == branch_id)
     return query.all()
 
 @router.post("/tables/bulk", response_model=List[schemas.TableResponse])
-def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = 1, db: Session = Depends(get_db)):
+def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = 1, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     created = []
     for t in tables:
         # Check if table exists
@@ -42,7 +50,11 @@ def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = 
     return created
 
 @router.put("/tables/{table_id}", response_model=schemas.TableResponse)
-def update_table(table_id: str, table_update: schemas.TableUpdate, db: Session = Depends(get_db)):
+def update_table(table_id: str, table_update: schemas.TableUpdate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     db_table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
     if not db_table:
         raise HTTPException(status_code=404, detail="Table not found")
@@ -61,7 +73,11 @@ def update_table(table_id: str, table_update: schemas.TableUpdate, db: Session =
     return db_table
 
 @router.delete("/tables/{table_id}")
-def delete_table(table_id: str, db: Session = Depends(get_db)):
+def delete_table(table_id: str, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     db_table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
     if not db_table:
         raise HTTPException(status_code=404, detail="Table not found")
@@ -71,7 +87,11 @@ def delete_table(table_id: str, db: Session = Depends(get_db)):
     return {"status": "deleted"}
 
 @router.get("/tables/{table_id}/order", response_model=Optional[schemas.OrderResponse])
-def get_active_order(table_id: str, db: Session = Depends(get_db)):
+def get_active_order(table_id: str, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     order = db.query(models.Order).filter(
         models.Order.table_id == table_id,
         models.Order.status == 'active'
@@ -91,7 +111,11 @@ class KotRequest(BaseModel):
     order_type: str = "dine_in" # dine_in or takeaway
 
 @router.post("/tables/{table_id}/kot")
-def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)):
+def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     from datetime import datetime
     from decimal import Decimal
     from uuid import uuid4
@@ -135,12 +159,14 @@ def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)
                 db.add(takeaway_table)
                 db.flush()
 
+        b_id = branch_id if locals().get('branch_id') else (user_branch_id or 1)
+        
         order = models.Order(
             order_id=f"ORD-{uuid4().hex[:6].upper()}",
             table_id=table_id if request.order_type == "dine_in" else "TAKEAWAY",
             status="active",
-            created_by=1,
-            branch_id=1,
+            created_by=current_user.get("user_id", 1),
+            branch_id=b_id,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -184,7 +210,11 @@ class CheckoutRequest(BaseModel):
     card_amount: float = 0.0
 
 @router.post("/tables/{table_id}/checkout")
-def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_db)):
+def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     from datetime import datetime
     from decimal import Decimal
     from uuid import uuid4
@@ -205,6 +235,8 @@ def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_
     
     total = subtotal + tax_amount + Decimal(str(request.tip_amount))
     
+    b_id = branch_id if locals().get('branch_id') else (user_branch_id or 1)
+    
     # 3. Create Bill
     bill = models.Bill(
         bill_id=f"BILL-{uuid4().hex[:6].upper()}",
@@ -220,8 +252,8 @@ def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_
         upi_amount=Decimal(str(request.upi_amount)),
         card_amount=Decimal(str(request.card_amount)),
         payment_status="completed",
-        billed_by=1,
-        branch_id=1,
+        billed_by=current_user.get("user_id", 1),
+        branch_id=b_id,
         bill_date=datetime.now().date(),
         bill_time=datetime.now().time(),
         created_at=datetime.now()

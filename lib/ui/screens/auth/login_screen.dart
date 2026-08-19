@@ -74,13 +74,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 24),
                         decoration: BoxDecoration(
-                          color: AppTheme.error.withOpacity(0.1),
+                          color: AppTheme.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.error.withOpacity(0.5)),
+                          border: Border.all(color: AppTheme.error.withValues(alpha: 0.5)),
                         ),
                         child: Text(
                           authState.error!,
-                          style: TextStyle(color: AppTheme.error),
+                          style: const TextStyle(color: AppTheme.error),
                         ),
                       ),
                     TextField(

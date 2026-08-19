@@ -35,7 +35,7 @@ class _AiChatBubbleState extends State<AiChatBubble> {
                 color: AppTheme.surface,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, spreadRadius: 2),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, spreadRadius: 2),
                 ],
                 border: Border.all(color: const Color(0xFFE9ECEF)),
               ),

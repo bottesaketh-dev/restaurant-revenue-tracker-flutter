@@ -13,8 +13,11 @@ def get_menu_items(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = branch_id or token_data.get("branch_id")
-    
+    user_role = token_data.get("role")
+    user_branch_id = token_data.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
+    b_id = branch_id
     query = db.query(models.MenuItem)
     if b_id:
         query = query.filter(models.MenuItem.branch_id == b_id)
@@ -57,8 +60,11 @@ def get_categories(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = branch_id or token_data.get("branch_id")
-    
+    user_role = token_data.get("role")
+    user_branch_id = token_data.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
+    b_id = branch_id
     query = db.query(models.MenuItem.category).distinct()
     if b_id:
         query = query.filter(models.MenuItem.branch_id == b_id)

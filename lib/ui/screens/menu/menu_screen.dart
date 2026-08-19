@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/menu_provider.dart';
 import 'widgets/menu_item_dialog.dart';
-import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
@@ -107,7 +106,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                     if (val) _onlyNonVeg = false;
                   });
                 },
-                selectedColor: Colors.green.withOpacity(0.2),
+                selectedColor: Colors.green.withValues(alpha: 0.2),
                 checkmarkColor: Colors.green,
               ),
               const SizedBox(width: 12),
@@ -120,7 +119,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                     if (val) _onlyVeg = false;
                   });
                 },
-                selectedColor: AppTheme.error.withOpacity(0.2),
+                selectedColor: AppTheme.error.withValues(alpha: 0.2),
                 checkmarkColor: AppTheme.error,
               ),
             ],
@@ -240,7 +239,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                             const SizedBox(width: 32),
                             Switch(
                               value: item['is_available'] ?? true,
-                              activeColor: Colors.green,
+                              activeThumbColor: Colors.green,
                               onChanged: (val) async {
                                 final updated = Map<String, dynamic>.from(item);
                                 updated['is_available'] = val;

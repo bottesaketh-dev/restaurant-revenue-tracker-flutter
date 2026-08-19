@@ -58,7 +58,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: itemsMap.containsKey(formData['grocery_item_id']) ? formData['grocery_item_id'] : null,
+                        initialValue: itemsMap.containsKey(formData['grocery_item_id']) ? formData['grocery_item_id'] : null,
                         decoration: const InputDecoration(labelText: 'Item'),
                         items: itemsMap.entries.map((e) => DropdownMenuItem<String>(
                           value: e.key,
@@ -200,7 +200,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                 return ListTile(
                                   title: Text(catName, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
                                   selected: isSelected,
-                                  selectedTileColor: AppTheme.primary.withOpacity(0.1),
+                                  selectedTileColor: AppTheme.primary.withValues(alpha: 0.1),
                                   onTap: () => setState(() => selectedCatId = catId),
                                 );
                               },
@@ -579,7 +579,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                 leading: Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.secondaryContainer.withOpacity(0.2),
+                                    color: AppTheme.secondaryContainer.withValues(alpha: 0.2),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(Icons.shopping_cart_outlined, color: AppTheme.secondary),

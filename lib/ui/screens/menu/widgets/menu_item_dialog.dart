@@ -105,7 +105,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
       }
 
       if (name.isEmpty || priceStr.isEmpty || category.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please fill Name, Price, and Category for all entries.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill Name, Price, and Category for all entries.')));
         return;
       }
 
@@ -262,9 +262,9 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
                               )),
                               DataCell(Switch(
                                 value: entry.isVeg,
-                                activeColor: Colors.green,
+                                activeThumbColor: Colors.green,
                                 inactiveThumbColor: AppTheme.error,
-                                inactiveTrackColor: AppTheme.error.withOpacity(0.5),
+                                inactiveTrackColor: AppTheme.error.withValues(alpha: 0.5),
                                 onChanged: (val) => setState(() => entry.isVeg = val),
                               )),
                               if (!isEdit)
