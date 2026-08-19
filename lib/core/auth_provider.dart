@@ -10,14 +10,16 @@ class AuthState {
   final bool isAuthenticated;
   final bool isLoading;
   final String? error;
+  final Map<String, dynamic>? user;
 
-  AuthState({this.isAuthenticated = false, this.isLoading = false, this.error});
+  AuthState({this.isAuthenticated = false, this.isLoading = false, this.error, this.user});
 
-  AuthState copyWith({bool? isAuthenticated, bool? isLoading, String? error}) {
+  AuthState copyWith({bool? isAuthenticated, bool? isLoading, String? error, Map<String, dynamic>? user}) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
+      user: user ?? this.user,
     );
   }
 }
@@ -33,7 +35,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> checkAuthStatus() async {
     final token = await _secureStorage.read(key: 'jwt_token');
     if (token != null) {
-      state = state.copyWith(isAuthenticated: true);
+      try {
+        final response = await _dio.get('/auth/session');
+        state = state.copyWith(isAuthenticated: true, user: response.data);
+      } catch (e) {
+        // Token might be expired or invalid
+        await logout();
+      }
     }
   }
 
@@ -49,9 +57,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       final token = response.data['token'];
+      final user = response.data['user'];
       await _secureStorage.write(key: 'jwt_token', value: token);
       
-      state = state.copyWith(isAuthenticated: true, isLoading: false);
+      state = state.copyWith(isAuthenticated: true, isLoading: false, user: user);
     } on DioException catch (e) {
       state = state.copyWith(
         isLoading: false, 
@@ -64,6 +73,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _secureStorage.delete(key: 'jwt_token');
-    state = state.copyWith(isAuthenticated: false);
+    state = state.copyWith(isAuthenticated: false, user: null);
   }
 }

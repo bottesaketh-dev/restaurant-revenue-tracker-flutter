@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, desc
 from typing import Optional
 from database import get_db
+import security
 import models
 from datetime import datetime, date, timedelta
 from decimal import Decimal
@@ -34,7 +35,11 @@ def get_date_range(start_date: Optional[str], end_date: Optional[str]):
     return start_d, end_d
 
 @router.get("/profit-loss")
-def get_profit_loss(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_profit_loss(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
 
@@ -81,7 +86,11 @@ def get_profit_loss(branch_id: Optional[int] = None, start_date: Optional[str] =
     }
 
 @router.get("/sales-trends")
-def get_sales_trends(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_sales_trends(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     start_d, end_d = get_date_range(start_date, end_date)
     
     query = db.query(
@@ -121,7 +130,11 @@ def get_sales_trends(branch_id: Optional[int] = None, start_date: Optional[str] 
 
 
 @router.get("/metrics-summary")
-def get_metrics_summary(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_metrics_summary(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
 
@@ -174,7 +187,11 @@ def get_metrics_summary(branch_id: Optional[int] = None, start_date: Optional[st
     }
 
 @router.get("/category-revenue")
-def get_category_revenue(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_category_revenue(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     
@@ -194,7 +211,11 @@ def get_category_revenue(branch_id: Optional[int] = None, start_date: Optional[s
     return [{"category": c, "revenue": float(r or 0)} for c, r in q]
 
 @router.get("/top-items")
-def get_top_items(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_top_items(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     
@@ -214,7 +235,11 @@ def get_top_items(branch_id: Optional[int] = None, start_date: Optional[str] = N
     return [{"name": n, "quantity": int(q or 0)} for n, q in q]
 
 @router.get("/expense-breakdown")
-def get_expense_breakdown(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_expense_breakdown(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     
@@ -232,7 +257,11 @@ def get_expense_breakdown(branch_id: Optional[int] = None, start_date: Optional[
     return [{"category": c, "amount": float(a or 0)} for c, a in q]
 
 @router.get("/branch-comparison")
-def get_branch_comparison(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_branch_comparison(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     start_d, end_d = get_date_range(start_date, end_date)
     
     q = db.query(
@@ -248,7 +277,11 @@ def get_branch_comparison(start_date: Optional[str] = None, end_date: Optional[s
     return [{"branch_name": name, "revenue": float(rev or 0)} for name, rev in q]
 
 @router.get("/export")
-def export_report(format: str = "csv", branch_id: Optional[int] = 0, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def export_report(format: str = "csv", branch_id: Optional[int] = 0, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     summary = get_metrics_summary(branch_id, start_date, end_date, db)
     trends = get_sales_trends(branch_id, start_date, end_date, db)
     categories = get_category_revenue(branch_id, start_date, end_date, db)
@@ -326,7 +359,11 @@ from collections import defaultdict
 from sqlalchemy import case
 
 @router.get('/executive-summary')
-def get_executive_summary(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_executive_summary(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     
@@ -369,7 +406,11 @@ def get_executive_summary(branch_id: Optional[int] = None, start_date: Optional[
     }
 
 @router.get('/sales-engineering')
-def get_sales_engineering(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_sales_engineering(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     
@@ -423,7 +464,11 @@ def get_sales_engineering(branch_id: Optional[int] = None, start_date: Optional[
     }
 
 @router.get('/inventory-supply')
-def get_inventory_supply(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_inventory_supply(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     
@@ -441,7 +486,11 @@ def get_inventory_supply(branch_id: Optional[int] = None, start_date: Optional[s
     }
 
 @router.get('/expenses-hr')
-def get_expenses_hr(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_expenses_hr(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     
@@ -461,7 +510,11 @@ def get_expenses_hr(branch_id: Optional[int] = None, start_date: Optional[str] =
     }
 
 @router.get('/operations')
-def get_operations(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_operations(branch_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
     b_id = branch_id or 1
     start_d, end_d = get_date_range(start_date, end_date)
     

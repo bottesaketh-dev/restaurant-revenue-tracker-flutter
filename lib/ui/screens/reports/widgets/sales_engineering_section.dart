@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/reports_provider.dart';
 import '../../../../core/currency_formatter.dart';
-import '../../../../theme/app_theme.dart';
 import 'custom_donut_chart.dart';
 
 class SalesEngineeringSection extends ConsumerWidget {
@@ -81,10 +79,10 @@ class SalesEngineeringSection extends ConsumerWidget {
                             trailing: Text(CurrencyFormatter.format(discounts['subtotal'] ?? 0), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           ),
                           const Divider(),
-                          ListTile(
+                          const ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: const Text('Discount %'),
-                            trailing: Text('%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            title: Text('Discount %'),
+                            trailing: Text('%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           ),
                         ],
                       ),
@@ -114,7 +112,7 @@ class SalesEngineeringSection extends ConsumerWidget {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(item['name'], style: const TextStyle(fontSize: 14)),
-                                    Text('', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    const Text('', style: TextStyle(fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               )),
@@ -141,7 +139,7 @@ class SalesEngineeringSection extends ConsumerWidget {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(item['name'], style: const TextStyle(fontSize: 14)),
-                                    Text('', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    const Text('', style: TextStyle(fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               )),

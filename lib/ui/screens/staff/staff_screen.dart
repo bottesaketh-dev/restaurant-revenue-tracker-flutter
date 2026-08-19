@@ -26,6 +26,14 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
   });
 
   void _showBulkOnboardingModal(BuildContext context) {
+    final staffData = ref.read(staffProvider).value ?? [];
+    final Set<String> rolesSet = {};
+    for (final s in staffData) {
+      if (s['position'] != null && s['position'].toString().isNotEmpty) {
+        rolesSet.add(s['position'].toString());
+      }
+    }
+
     setState(() {
       _bulkData = List.generate(1, (index) => {
         'employee_id': '',
@@ -110,10 +118,14 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                   keyboardType: TextInputType.number
                                 )),
                                 DataCell(DropdownButtonFormField<String>(
-                                  value: ['Chef', 'Waiter', 'Cashier', 'Cleaner', 'Manager'].contains(_bulkData[index]['position']) ? _bulkData[index]['position'] : 'Waiter',
-                                  items: ['Chef', 'Waiter', 'Cashier', 'Cleaner', 'Manager'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                                  value: _bulkData[index]['position'],
+                                  items: (rolesSet.contains(_bulkData[index]['position']) ? rolesSet : {...rolesSet, _bulkData[index]['position']}).map((e) => DropdownMenuItem(value: e as String, child: Text(e.toString()))).toList(),
                                   onChanged: (val) {
-                                    if (val != null) _bulkData[index]['position'] = val;
+                                    if (val != null) {
+                                      setState(() {
+                                        _bulkData[index]['position'] = val;
+                                      });
+                                    }
                                   },
                                   decoration: const InputDecoration(hintText: 'Role', isDense: true, border: InputBorder.none),
                                 )),
@@ -197,7 +209,21 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
   }
 
   void _showEditEmployeeModal(BuildContext context, Map<String, dynamic> employee) {
+    final staffData = ref.read(staffProvider).value ?? [];
+    final Set<String> rolesSet = {};
+    for (final s in staffData) {
+      if (s['position'] != null && s['position'].toString().isNotEmpty) {
+        rolesSet.add(s['position'].toString());
+      }
+    }
+
     final formData = Map<String, dynamic>.from(employee);
+    if (formData['position'] != null && formData['position'].toString().isNotEmpty) {
+      rolesSet.add(formData['position'].toString());
+    } else {
+      rolesSet.add('Waiter');
+      formData['position'] = 'Waiter';
+    }
     
     showDialog(
       context: context,
@@ -221,9 +247,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: ['Chef', 'Waiter', 'Cashier', 'Cleaner', 'Manager'].contains(formData['position']) ? formData['position'] : 'Waiter',
+                  value: formData['position'],
                   decoration: const InputDecoration(labelText: 'Position'),
-                  items: ['Chef', 'Waiter', 'Cashier', 'Cleaner', 'Manager'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                  items: rolesSet.map((e) => DropdownMenuItem(value: e as String, child: Text(e.toString()))).toList(),
                   onChanged: (v) => formData['position'] = v,
                 ),
                 const SizedBox(height: 16),
@@ -311,7 +337,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: formData['payment_mode'],
+                      initialValue: formData['payment_mode'],
                       decoration: const InputDecoration(labelText: 'Payment Mode'),
                       items: ['Bank Transfer', 'Cash', 'UPI', 'Cheque'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (v) => formData['payment_mode'] = v,
@@ -423,7 +449,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                             return ListTile(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                               leading: CircleAvatar(
-                                backgroundColor: AppTheme.primary.withOpacity(0.1),
+                                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                                 child: Text(fullName.isNotEmpty ? fullName[0] : '?', style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
                               ),
                               title: Text(fullName, style: Theme.of(context).textTheme.headlineMedium),
@@ -552,8 +578,8 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                             ),
                                             const SizedBox(width: 24),
                                             if (isPaid)
-                                              Chip(
-                                                label: const Text('Paid', style: TextStyle(color: Colors.white)),
+                                              const Chip(
+                                                label: Text('Paid', style: TextStyle(color: Colors.white)),
                                                 backgroundColor: Colors.green,
                                               )
                                             else

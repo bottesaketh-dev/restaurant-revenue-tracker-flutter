@@ -3,8 +3,6 @@ import '../../../theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/reports_provider.dart';
 import 'package:intl/intl.dart';
-import '../../../core/currency_formatter.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'overview_view.dart';
 import 'widgets/executive_summary_section.dart';
@@ -211,7 +209,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
             offset: const Offset(0, 8),
           )

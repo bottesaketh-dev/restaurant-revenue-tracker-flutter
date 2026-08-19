@@ -74,6 +74,13 @@ class SidebarLayout extends ConsumerWidget {
                   onTap: () => context.go('/home'),
                 ),
                 _SidebarItem(
+                  icon: Icons.group_outlined,
+                  label: 'Users',
+                  isSelected: currentPath == '/users',
+                  isCollapsed: isCollapsed,
+                  onTap: () => context.go('/users'),
+                ),
+                _SidebarItem(
                   icon: Icons.point_of_sale_outlined,
                   label: 'POS Billing',
                   isSelected: currentPath == '/pos',
@@ -218,7 +225,7 @@ class SidebarLayout extends ConsumerWidget {
           : AppBar(
               backgroundColor: AppTheme.primary,
               iconTheme: const IconThemeData(color: Colors.white),
-              title: Text(
+              title: const Text(
                 'Flavors Ledger',
                 style: TextStyle(color: AppTheme.secondaryContainer),
               ),
@@ -254,11 +261,11 @@ class _SidebarItem extends StatelessWidget {
         alignment: isCollapsed ? Alignment.center : Alignment.centerLeft,
         decoration: BoxDecoration(
           border: isSelected && !isCollapsed
-              ? Border(
+              ? const Border(
                   left: BorderSide(color: AppTheme.secondaryContainer, width: 4),
                 )
               : null,
-          color: isSelected ? Colors.white.withOpacity(0.05) : Colors.transparent,
+          color: isSelected ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
         ),
         child: isCollapsed
             ? Tooltip(
@@ -294,7 +301,7 @@ class _DesktopAppBar extends ConsumerWidget {
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 32),
       decoration: BoxDecoration(
-        color: AppTheme.surface.withOpacity(0.95),
+        color: AppTheme.surface.withValues(alpha: 0.95),
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Row(
@@ -304,41 +311,51 @@ class _DesktopAppBar extends ConsumerWidget {
             builder: (context, ref, child) {
               final branchesAsync = ref.watch(branchListProvider);
               final selectedBranch = ref.watch(selectedBranchProvider);
+              final user = ref.watch(authStateProvider).user;
+              final isAdmin = user?['role'] == 'ADMIN';
+              final userBranchId = user?['branch_id'];
+              
+              final currentDisplayBranch = selectedBranch ?? (isAdmin ? null : userBranchId);
 
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceDim.withOpacity(0.3),
+                  color: AppTheme.surfaceDim.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
                 child: branchesAsync.when(
                   data: (branches) {
+                    final displayBranchName = currentDisplayBranch == null 
+                        ? 'All Branches'
+                        : branches.firstWhere((b) => b['branch_id']?.toString() == currentDisplayBranch.toString(), orElse: () => {'name': 'Unknown'})['name'];
+
                     return DropdownButtonHideUnderline(
                       child: DropdownButton<int?>(
-                        value: selectedBranch,
+                        value: currentDisplayBranch != null ? int.tryParse(currentDisplayBranch.toString()) : null,
                         hint: Row(
                           children: [
                             Icon(Icons.location_on, size: 16, color: Colors.grey.shade700),
                             const SizedBox(width: 8),
-                            Text('All Branches', style: Theme.of(context).textTheme.bodyMedium),
+                            Text(displayBranchName, style: Theme.of(context).textTheme.bodyMedium),
                           ],
                         ),
                         icon: Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey.shade700),
                         isDense: true,
                         items: [
-                          DropdownMenuItem<int?>(
-                            value: null,
-                            child: Row(
-                              children: [
-                                Icon(Icons.location_on, size: 16, color: Colors.grey.shade700),
-                                const SizedBox(width: 8),
-                                Text('All Branches', style: Theme.of(context).textTheme.bodyMedium),
-                              ],
+                          if (isAdmin)
+                            DropdownMenuItem<int?>(
+                              value: null,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.location_on, size: 16, color: Colors.grey.shade700),
+                                  const SizedBox(width: 8),
+                                  Text('All Branches', style: Theme.of(context).textTheme.bodyMedium),
+                                ],
+                              ),
                             ),
-                          ),
-                          ...branches.map((b) => DropdownMenuItem<int?>(
-                            value: b['branch_id'],
+                          ...branches.where((b) => isAdmin || b['branch_id']?.toString() == userBranchId?.toString()).map((b) => DropdownMenuItem<int?>(
+                            value: int.tryParse(b['branch_id']?.toString() ?? ''),
                             child: Row(
                               children: [
                                 Icon(Icons.location_on, size: 16, color: Colors.grey.shade700),
@@ -349,7 +366,9 @@ class _DesktopAppBar extends ConsumerWidget {
                           )).toList(),
                         ],
                         onChanged: (value) {
-                          ref.read(selectedBranchProvider.notifier).state = value;
+                          if (value != null || isAdmin) {
+                            ref.read(selectedBranchProvider.notifier).state = value;
+                          }
                         },
                       ),
                     );

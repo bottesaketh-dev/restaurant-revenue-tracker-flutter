@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/chat_provider.dart';
 import '../../../theme/app_theme.dart';
-import 'dart:async';
 
 class AiCommandCenterScreen extends ConsumerStatefulWidget {
   const AiCommandCenterScreen({super.key});
@@ -194,7 +193,7 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
         margin: const EdgeInsets.only(bottom: 24, right: 64),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceDim.withOpacity(0.3),
+          color: AppTheme.surfaceDim.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12).copyWith(topLeft: Radius.zero),
           border: Border.all(color: const Color(0xFFE9ECEF)),
         ),
@@ -241,7 +240,7 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
         decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(12).copyWith(topLeft: Radius.zero),
-          border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,7 +268,7 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.bar_chart, size: 48, color: AppTheme.primary.withOpacity(0.5)),
+                      Icon(Icons.bar_chart, size: 48, color: AppTheme.primary.withValues(alpha: 0.5)),
                       const SizedBox(height: 8),
                       const Text('[Vega-Lite Chart Rendered Here]', style: TextStyle(color: Colors.grey)),
                     ],

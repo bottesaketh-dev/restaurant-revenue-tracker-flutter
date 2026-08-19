@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/pos_provider.dart';
 import '../../../../theme/app_theme.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/currency_formatter.dart';
 
 class CheckoutDialog extends ConsumerStatefulWidget {

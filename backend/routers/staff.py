@@ -12,8 +12,15 @@ def get_employees(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = branch_id or token_data.get("branch_id") or 1
-    return db.query(models.Employee).filter(models.Employee.branch_id == b_id).all()
+    user_role = token_data.get("role")
+    user_branch_id = token_data.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        branch_id = user_branch_id
+        
+    query = db.query(models.Employee)
+    if branch_id:
+        query = query.filter(models.Employee.branch_id == branch_id)
+    return query.all()
 
 @router.post("/", response_model=schemas.EmployeeResponse)
 def create_employee(
@@ -21,7 +28,9 @@ def create_employee(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
+    user_role = token_data.get("role")
+    user_branch_id = token_data.get("branch_id")
+    b_id = user_branch_id if user_role != "ADMIN" and user_branch_id else (emp.branch_id or 1)
     
     # Check if exists
     exists = db.query(models.Employee).filter(models.Employee.employee_id == emp.employee_id).first()
