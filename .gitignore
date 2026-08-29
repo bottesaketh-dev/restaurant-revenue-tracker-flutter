@@ -218,16 +218,16 @@ __marimo__/
 
 
 # flutter apps
-.dart_tool/
-.idea/
-android/
-build/
-ios/
-linux/
-macos/
-test/
-web/
-windows/
-.metadata
-analysis_options.yaml
-restaurant_flutter.iml
+frontend/.dart_tool/
+frontend/.idea/
+frontend/android/
+frontend/build/
+frontend/ios/
+frontend/linux/
+frontend/macos/
+frontend/test/
+frontend/web/
+frontend/windows/
+frontend/.metadata
+frontend/analysis_options.yaml
+frontend/restaurant_flutter.iml
