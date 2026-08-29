@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/users_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../../core/responsive.dart';
 
 class UsersScreen extends ConsumerWidget {
   const UsersScreen({super.key});
@@ -10,23 +11,29 @@ class UsersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(usersProvider);
+    final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'User Management',
-                      style: Theme.of(context).textTheme.displayLarge,
+                      style: isMobile 
+                          ? Theme.of(context).textTheme.headlineMedium 
+                          : Theme.of(context).textTheme.displayLarge,
                     ),
                     const SizedBox(height: 4),
                     Text(

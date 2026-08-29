@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/chat_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../../core/responsive.dart';
 
 class AiCommandCenterScreen extends ConsumerStatefulWidget {
   const AiCommandCenterScreen({super.key});
@@ -96,8 +97,10 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+
     return Padding(
-      padding: const EdgeInsets.all(32.0),
+      padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -105,7 +108,10 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
             children: [
               const Icon(Icons.auto_awesome, color: AppTheme.secondary, size: 32),
               const SizedBox(width: 16),
-              Text('AI Command Center', style: Theme.of(context).textTheme.displayLarge),
+              Text(
+                'AI Command Center', 
+                style: isMobile ? Theme.of(context).textTheme.headlineMedium : Theme.of(context).textTheme.displayLarge,
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -120,11 +126,11 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
                       itemBuilder: (context, index) {
                         final msg = _messages[index];
                         if (msg['type'] == 'user') {
-                          return _buildUserMessage(context, msg['content']);
+                          return _buildUserMessage(context, msg['content'], isMobile);
                         } else if (msg['type'] == 'plan') {
-                          return _buildPlanMessage(context, msg['steps']);
+                          return _buildPlanMessage(context, msg['steps'], isMobile);
                         } else {
-                          return _buildAiMessage(context, msg['content'], msg['hasChart'] ?? false);
+                          return _buildAiMessage(context, msg['content'], msg['hasChart'] ?? false, isMobile);
                         }
                       },
                     ),
@@ -153,11 +159,11 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
                         ElevatedButton(
                           onPressed: _isProcessing ? null : _submitQuery,
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 16),
                           ),
                           child: _isProcessing
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text('Send'),
+                              : (isMobile ? const Icon(Icons.send, size: 20) : const Text('Send')),
                         ),
                       ],
                     ),
@@ -171,11 +177,11 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
     );
   }
 
-  Widget _buildUserMessage(BuildContext context, String text) {
+  Widget _buildUserMessage(BuildContext context, String text, bool isMobile) {
     return Align(
       alignment: Alignment.centerRight,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 24, left: 64),
+        margin: EdgeInsets.only(bottom: 24, left: isMobile ? 16 : 64),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppTheme.primary,
@@ -186,11 +192,11 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
     );
   }
 
-  Widget _buildPlanMessage(BuildContext context, List<Map<String, dynamic>> steps) {
+  Widget _buildPlanMessage(BuildContext context, List<dynamic> steps, bool isMobile) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 24, right: 64),
+        margin: EdgeInsets.only(bottom: 24, right: isMobile ? 16 : 64),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppTheme.surfaceDim.withValues(alpha: 0.3),
@@ -231,11 +237,11 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
     );
   }
 
-  Widget _buildAiMessage(BuildContext context, String text, bool hasChart) {
+  Widget _buildAiMessage(BuildContext context, String text, bool hasChart, bool isMobile) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 24, right: 64),
+        margin: EdgeInsets.only(bottom: 24, right: isMobile ? 16 : 64),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppTheme.surface,

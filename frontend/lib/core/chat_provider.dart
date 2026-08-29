@@ -15,7 +15,7 @@ class ChatStreamService {
   Stream<Map<String, dynamic>> sendQuery(String message) async* {
     final token = await _storage.read(key: 'jwt_token');
     
-    final request = http.Request('POST', Uri.parse('http://127.0.0.1:8000/api/v1/chat'));
+    final request = http.Request('POST', Uri.parse('https://restaurant-revenue-tracker-flutter.onrender.com/api/v1/chat'));
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }

@@ -4,6 +4,7 @@ import '../../../theme/app_theme.dart';
 import '../../../core/expenses_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/responsive.dart';
 
 class ExpensesScreen extends ConsumerStatefulWidget {
   const ExpensesScreen({super.key});
@@ -261,34 +262,42 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       orElse: () => {1: 'Utilities', 2: 'Maintenance', 3: 'Marketing', 4: 'Miscellaneous'},
     );
 
+    final isMobile = Responsive.isMobile(context);
+
     return Padding(
-      padding: const EdgeInsets.all(32.0),
+      padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // HEADER
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 16,
             children: [
               Text(
                 'General Expenses',
-                style: Theme.of(context).textTheme.displayLarge,
+                style: isMobile 
+                    ? Theme.of(context).textTheme.headlineMedium 
+                    : Theme.of(context).textTheme.displayLarge,
               ),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   OutlinedButton.icon(
                     onPressed: () => _showExpenseModal(context, Map.from(categoriesMap)),
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Expense(s)'),
+                    label: isMobile ? const Text('Add') : const Text('Add Expense(s)'),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () {
                       ref.invalidate(expenseCategoriesProvider);
                       ref.read(expensesProvider.notifier).fetchExpenses();
                     },
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh'),
+                    label: isMobile ? const Text('') : const Text('Refresh'),
                   ),
                 ],
               )
@@ -297,7 +306,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           const SizedBox(height: 24),
 
           // FILTER BAR & KPI
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               // Date Filter
               OutlinedButton.icon(
@@ -340,8 +352,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                   ref.read(expenseCategoryFilterProvider.notifier).state = val;
                 },
               ),
-              
-              const Spacer(),
               
               // TOTAL COST KPI
               Container(
@@ -405,7 +415,19 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                         ),
                         title: Text(exp['description'], style: Theme.of(context).textTheme.headlineMedium),
                         subtitle: Text('${exp['expense_date']} • ${categoriesMap[exp['category_id']] ?? 'Category ${exp['category_id']}'}'),
-                        trailing: Row(
+                        trailing: isMobile ? Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _showExpenseModal(context, Map.from(categoriesMap), expenseToEdit: exp),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _confirmDelete(context, exp['expense_id']),
+                            ),
+                          ],
+                        ) : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(CurrencyFormatter.format(exp['amount']), style: Theme.of(context).textTheme.bodyLarge?.copyWith(

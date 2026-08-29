@@ -4,6 +4,7 @@ import '../../../theme/app_theme.dart';
 import '../../../core/groceries_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/responsive.dart';
 
 class GroceriesScreen extends ConsumerStatefulWidget {
   const GroceriesScreen({super.key});
@@ -442,34 +443,42 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
               for (var i in itemsData) i['grocery_item_id'] as String: i
             };
             
+            final isMobile = Responsive.isMobile(context);
+            
             return Padding(
-              padding: const EdgeInsets.all(32.0),
+              padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 16,
+                    runSpacing: 16,
                     children: [
                       Text(
                         'Groceries Management',
-                        style: Theme.of(context).textTheme.displayLarge,
+                        style: isMobile 
+                            ? Theme.of(context).textTheme.headlineMedium 
+                            : Theme.of(context).textTheme.displayLarge,
                       ),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           OutlinedButton.icon(
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh'),
+                            label: isMobile ? const Text('') : const Text('Refresh'),
                             onPressed: () {
                               ref.refresh(groceriesProvider);
                               ref.refresh(groceryCategoriesProvider);
                               ref.refresh(groceryItemsProvider);
                             },
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 8),
                           ElevatedButton.icon(
                             onPressed: () => _showBulkAddGroceryModal(context, itemsMap, categoriesMap),
                             icon: const Icon(Icons.add),
-                            label: const Text('Add Grocery(s)'),
+                            label: isMobile ? const Text('Add') : const Text('Add Grocery(s)'),
                           ),
                         ],
                       )
@@ -477,7 +486,10 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                   ),
                   const SizedBox(height: 24),
                   // FILTER BAR & KPI
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       // Date Filter
                       OutlinedButton.icon(
@@ -521,8 +533,6 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                           ref.read(groceryCategoryFilterProvider.notifier).state = val;
                         },
                       ),
-                      
-                      const Spacer(),
                       
                       // TOTAL COST KPI
                       Container(
@@ -586,7 +596,43 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                 ),
                                 title: Text('${p['product_name']} (${p['unit']})', style: Theme.of(context).textTheme.headlineMedium),
                                 subtitle: Text('${p['purchase_date']} • Vendor: ${p['vendor_name'] ?? '-'} • Qty: ${p['quantity']} @ ${CurrencyFormatter.format(p['unit_price'])}'),
-                                trailing: Row(
+                                trailing: isMobile ? Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () => _showEditGroceryModal(context, itemsMap, categoriesMap, p),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            title: const Text('Delete Purchase?'),
+                                            content: const Text('Are you sure you want to delete this grocery purchase?'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error, foregroundColor: Colors.white),
+                                                onPressed: () => Navigator.pop(ctx, true), 
+                                                child: const Text('Delete')
+                                              ),
+                                            ],
+                                          )
+                                        );
+                                        if (confirm == true) {
+                                          try {
+                                            await ref.read(groceriesProvider.notifier).deleteGrocery(p['grocery_purchase_id']);
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
+                                          } catch (e) {
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ) : Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(CurrencyFormatter.format(p['total_price']), style: Theme.of(context).textTheme.bodyLarge?.copyWith(

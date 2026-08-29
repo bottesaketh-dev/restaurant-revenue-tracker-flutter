@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/reports_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/responsive.dart';
 import 'overview_view.dart';
 import 'widgets/executive_summary_section.dart';
 import 'widgets/sales_engineering_section.dart';
@@ -27,14 +28,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final currentTab = ref.watch(reportsTabProvider);
+    final isMobile = Responsive.isMobile(context);
     
     return Container(
       color: Colors.transparent, // Inherit light background
-      padding: const EdgeInsets.all(32.0),
+      padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(context, currentTab),
+          _buildHeader(context, currentTab, isMobile),
           const SizedBox(height: 32),
           Expanded(
             child: _buildSelectedTabContent(currentTab),
@@ -63,11 +65,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
-  Widget _buildHeader(BuildContext context, ReportsTab currentTab) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildHeader(BuildContext context, ReportsTab currentTab, bool isMobile) {
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16,
+      runSpacing: 16,
       children: [
-        Expanded(
+        SizedBox(
+          width: isMobile ? double.infinity : null,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Container(
@@ -91,12 +97,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        Row(
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             OutlinedButton.icon(
               icon: const Icon(Icons.refresh),
-              label: const Text('Refresh'),
+              label: isMobile ? const Text('') : const Text('Refresh'),
               onPressed: () {
                 ref.refresh(homeProvider);
                 ref.refresh(executiveSummaryProvider);
@@ -107,12 +115,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ref.refresh(reportsOverviewProvider);
               },
             ),
-            const SizedBox(width: 16),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.black87,
                 side: BorderSide(color: Colors.grey[300]!),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
@@ -135,12 +142,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 builder: (context, ref, child) {
                   final range = ref.watch(dateRangeProvider);
                   if (range == null) return const Text('Last 30 Days');
-                  final fmt = DateFormat('MMM d, yyyy');
+                  final fmt = DateFormat('MMM d');
                   return Text('${fmt.format(range.start)} - ${fmt.format(range.end)}');
                 },
               ),
             ),
-            const SizedBox(width: 16),
             PopupMenuButton<String>(
               onSelected: (format) {
                 final range = ref.read(dateRangeProvider);
@@ -161,12 +167,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6A11CB),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () {},
                   icon: const Icon(Icons.download),
-                  label: const Text('Export Report'),
+                  label: isMobile ? const Text('Export') : const Text('Export Report'),
                 ),
               ),
             ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/home_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/responsive.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -13,154 +14,201 @@ class HomeScreen extends ConsumerWidget {
     final dashboardAsync = ref.watch(homeProvider);
     final now = DateTime.now();
     final displayDate = DateFormat('EEEE, MMMM d, yyyy').format(now);
+    final isMobile = Responsive.isMobile(context);
 
     return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Owner Dashboard',
-                    style: Theme.of(context).textTheme.displayLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    displayDate,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-                onPressed: () {
-                  ref.refresh(homeProvider);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          dashboardAsync.when(
-            skipLoadingOnRefresh: false,
-            data: (data) => Row(
+      padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _KpiCard(
-                        title: 'CASH INFLOW',
-                        value: CurrencyFormatter.format(data['inflow'], decimalDigits: 0),
-                        icon: Icons.arrow_upward,
-                        color: AppTheme.primary,
-                        percentage: '${data['inflow_pct'] >= 0 ? '+' : ''}${data['inflow_pct']}%',
-                        percentageColor: data['inflow_pct'] >= 0 ? AppTheme.primaryContainer : AppTheme.error,
+                      Text(
+                        'Owner Dashboard',
+                        style: isMobile 
+                            ? Theme.of(context).textTheme.headlineMedium 
+                            : Theme.of(context).textTheme.displayLarge,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _PaymentSplitChip('Cash', data['cash_inflow'])),
-                          const SizedBox(width: 8),
-                          Expanded(child: _PaymentSplitChip('UPI', data['upi_inflow'])),
-                          const SizedBox(width: 8),
-                          Expanded(child: _PaymentSplitChip('Card', data['card_inflow'])),
-                        ],
-                      )
+                      const SizedBox(height: 4),
+                      Text(
+                        displayDate,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'CASH OUTFLOW',
-                    value: CurrencyFormatter.format(data['outflow'], decimalDigits: 0),
-                    icon: Icons.arrow_downward,
-                    color: AppTheme.error,
-                    percentage: '${data['outflow_pct'] >= 0 ? '+' : ''}${data['outflow_pct']}%',
-                    percentageColor: data['outflow_pct'] >= 0 ? AppTheme.error : AppTheme.primaryContainer,
+                if (!isMobile)
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    onPressed: () {
+                      ref.refresh(homeProvider);
+                    },
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () {
+                      ref.refresh(homeProvider);
+                    },
                   ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'NET CASHFLOW',
-                    value: CurrencyFormatter.format(data['net'], decimalDigits: 0),
-                    icon: Icons.account_balance,
-                    color: AppTheme.secondary,
-                    percentage: '${data['net_pct'] >= 0 ? '+' : ''}${data['net_pct']}%',
-                    percentageColor: data['net_pct'] >= 0 ? AppTheme.primary : AppTheme.error,
-                  ),
-                ),
               ],
             ),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => Center(child: Text('Error: $e')),
-          ),
-          const SizedBox(height: 32),
-          Expanded(
-            child: dashboardAsync.when(
+            const SizedBox(height: 24),
+            dashboardAsync.when(
               skipLoadingOnRefresh: false,
               data: (data) {
-                final recentBills = List<Map<String, dynamic>>.from(data['recent_bills']);
-                final recentExpenses = List<Map<String, dynamic>>.from(data['recent_expenses']);
-                final recentGroceries = List<Map<String, dynamic>>.from(data['recent_groceries']);
+                final kpi1 = Column(
+                  children: [
+                    _KpiCard(
+                      title: 'CASH INFLOW',
+                      value: CurrencyFormatter.format(data['inflow'], decimalDigits: 0),
+                      icon: Icons.arrow_upward,
+                      color: AppTheme.primary,
+                      percentage: '${data['inflow_pct'] >= 0 ? '+' : ''}${data['inflow_pct']}%',
+                      percentageColor: data['inflow_pct'] >= 0 ? AppTheme.primaryContainer : AppTheme.error,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _PaymentSplitChip('Cash', data['cash_inflow'])),
+                        const SizedBox(width: 8),
+                        Expanded(child: _PaymentSplitChip('UPI', data['upi_inflow'])),
+                        const SizedBox(width: 8),
+                        Expanded(child: _PaymentSplitChip('Card', data['card_inflow'])),
+                      ],
+                    )
+                  ],
+                );
+                final kpi2 = _KpiCard(
+                  title: 'CASH OUTFLOW',
+                  value: CurrencyFormatter.format(data['outflow'], decimalDigits: 0),
+                  icon: Icons.arrow_downward,
+                  color: AppTheme.error,
+                  percentage: '${data['outflow_pct'] >= 0 ? '+' : ''}${data['outflow_pct']}%',
+                  percentageColor: data['outflow_pct'] >= 0 ? AppTheme.error : AppTheme.primaryContainer,
+                );
+                final kpi3 = _KpiCard(
+                  title: 'NET CASHFLOW',
+                  value: CurrencyFormatter.format(data['net'], decimalDigits: 0),
+                  icon: Icons.account_balance,
+                  color: AppTheme.secondary,
+                  percentage: '${data['net_pct'] >= 0 ? '+' : ''}${data['net_pct']}%',
+                  percentageColor: data['net_pct'] >= 0 ? AppTheme.primary : AppTheme.error,
+                );
+
+                if (isMobile) {
+                  return Column(
+                    children: [
+                      kpi1,
+                      const SizedBox(height: 16),
+                      kpi2,
+                      const SizedBox(height: 16),
+                      kpi3,
+                    ],
+                  );
+                }
 
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: 2,
-                      child: _BillsTableCard(bills: recentBills),
-                    ),
+                    Expanded(child: kpi1),
                     const SizedBox(width: 24),
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: _GenericTableCard(
-                              title: 'Today\'s Expenses',
-                              columns: const ['Date', 'Desc', 'Amount', 'Mode'],
-                              rows: recentExpenses.map((e) => <String>[
-                                e['date']?.toString() ?? '',
-                                e['description']?.toString() ?? '',
-                                CurrencyFormatter.format(e['amount'] ?? 0),
-                                e['payment_mode']?.toString() ?? '',
-                              ]).toList(),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Expanded(
-                            child: _GenericTableCard(
-                              title: 'Today\'s Groceries',
-                              columns: const ['Date', 'Item Name', 'Qty', 'Amount'],
-                              rows: recentGroceries.map((g) => <String>[
-                                g['date']?.toString() ?? '',
-                                g['item_name']?.toString() ?? '',
-                                (g['quantity'] ?? 0).toString(),
-                                CurrencyFormatter.format(g['amount'] ?? 0),
-                              ]).toList(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    Expanded(child: kpi2),
+                    const SizedBox(width: 24),
+                    Expanded(child: kpi3),
                   ],
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, st) => Center(child: Text('Error: $e')),
             ),
-          ),
-        ],
+            const SizedBox(height: 32),
+            dashboardAsync.when(
+              skipLoadingOnRefresh: false,
+              data: (data) {
+                final recentBills = List<Map<String, dynamic>>.from(data['recent_bills']);
+                final recentExpenses = List<Map<String, dynamic>>.from(data['recent_expenses']);
+                final recentGroceries = List<Map<String, dynamic>>.from(data['recent_groceries']);
+
+                final billsCard = SizedBox(
+                  height: 400,
+                  child: _BillsTableCard(bills: recentBills),
+                );
+
+                final otherCards = Column(
+                  children: [
+                    SizedBox(
+                      height: 250,
+                      child: _GenericTableCard(
+                        title: 'Today\'s Expenses',
+                        columns: const ['Date', 'Desc', 'Amount', 'Mode'],
+                        rows: recentExpenses.map((e) => <String>[
+                          e['date']?.toString() ?? '',
+                          e['description']?.toString() ?? '',
+                          CurrencyFormatter.format(e['amount'] ?? 0),
+                          e['payment_mode']?.toString() ?? '',
+                        ]).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 250,
+                      child: _GenericTableCard(
+                        title: 'Today\'s Groceries',
+                        columns: const ['Date', 'Item Name', 'Qty', 'Amount'],
+                        rows: recentGroceries.map((g) => <String>[
+                          g['date']?.toString() ?? '',
+                          g['item_name']?.toString() ?? '',
+                          (g['quantity'] ?? 0).toString(),
+                          CurrencyFormatter.format(g['amount'] ?? 0),
+                        ]).toList(),
+                      ),
+                    ),
+                  ],
+                );
+
+                if (isMobile) {
+                  return Column(
+                    children: [
+                      billsCard,
+                      const SizedBox(height: 24),
+                      otherCards,
+                    ],
+                  );
+                }
+
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: billsCard,
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        flex: 1,
+                        child: otherCards,
+                      ),
+                    ],
+                  ),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Center(child: Text('Error: $e')),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -192,7 +240,11 @@ class _BillsTableCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Expanded(child: _buildContent()),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => _buildContent(constraints.maxWidth),
+                ),
+              ),
             ],
           ),
         ),
@@ -200,22 +252,30 @@ class _BillsTableCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(double maxWidth) {
+    final double tableWidth = maxWidth < 800 ? 800 : maxWidth;
+
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 2)),
-          ),
-          child: const Row(
-            children: [
-              Expanded(flex: 2, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(flex: 1, child: Text('Table', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('Bill No', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
-            ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 2)),
+              ),
+              child: const Row(
+                children: [
+                  Expanded(flex: 2, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold))),
+                  Expanded(flex: 1, child: Text('Table', style: TextStyle(fontWeight: FontWeight.bold))),
+                  Expanded(flex: 2, child: Text('Bill No', style: TextStyle(fontWeight: FontWeight.bold))),
+                  Expanded(flex: 2, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
+                  Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                ],
+              ),
+            ),
           ),
         ),
         Expanded(
@@ -232,25 +292,35 @@ class _BillsTableCard extends StatelessWidget {
                 ),
                 child: ExpansionTile(
                   shape: const RoundedRectangleBorder(side: BorderSide.none),
-                  title: Row(
-                    children: [
-                      Expanded(flex: 2, child: Text('${b['date']} ${b['time']}', style: const TextStyle(fontSize: 14))),
-                      Expanded(flex: 1, child: Text('${b['table_id']}', style: const TextStyle(fontSize: 14))),
-                      Expanded(flex: 2, child: Text('${b['bill_id']}', style: const TextStyle(fontSize: 14))),
-                      Expanded(flex: 2, child: Text(CurrencyFormatter.format(b['amount'] ?? 0), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))),
-                      Expanded(flex: 2, child: Text('${b['status']}', style: TextStyle(fontSize: 14, color: b['status'] == 'PAID' ? Colors.green : Colors.orange))),
-                    ],
+                  title: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: tableWidth,
+                      child: Row(
+                        children: [
+                          Expanded(flex: 2, child: Text('${b['date']} ${b['time']}', style: const TextStyle(fontSize: 14))),
+                          Expanded(flex: 1, child: Text('${b['table_id']}', style: const TextStyle(fontSize: 14))),
+                          Expanded(flex: 2, child: Text('${b['bill_id']}', style: const TextStyle(fontSize: 14))),
+                          Expanded(flex: 2, child: Text(CurrencyFormatter.format(b['amount'] ?? 0), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))),
+                          Expanded(flex: 2, child: Text('${b['status']}', style: TextStyle(fontSize: 14, color: b['status'] == 'PAID' ? Colors.green : Colors.orange))),
+                        ],
+                      ),
+                    ),
                   ),
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                           Expanded(
                             flex: 2,
                             child: Column(
@@ -290,7 +360,9 @@ class _BillsTableCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ],
+                  ),
+                ),
+              ],
                 ),
               );
             },
@@ -320,7 +392,11 @@ class _BillsTableCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Expanded(child: _buildContent()),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => _buildContent(constraints.maxWidth),
+              ),
+            ),
           ],
         ),
       ),
@@ -361,7 +437,11 @@ class _GenericTableCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Expanded(child: _buildContent()),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => _buildContent(constraints.maxWidth),
+                ),
+              ),
             ],
           ),
         ),
@@ -369,18 +449,26 @@ class _GenericTableCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(double maxWidth) {
+    final double tableWidth = maxWidth < 600 ? 600 : maxWidth;
+
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 2)),
-          ),
-          child: Row(
-            children: columns.map((c) => Expanded(
-              child: Text(c, style: const TextStyle(fontWeight: FontWeight.bold)),
-            )).toList(),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 2)),
+              ),
+              child: Row(
+                children: columns.map((c) => Expanded(
+                  child: Text(c, style: const TextStyle(fontWeight: FontWeight.bold)),
+                )).toList(),
+              ),
+            ),
           ),
         ),
         Expanded(
@@ -388,15 +476,21 @@ class _GenericTableCard extends StatelessWidget {
             itemCount: rows.length,
             itemBuilder: (context, index) {
               final row = rows[index];
-              return Container(
-                padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                ),
-                child: Row(
-                  children: row.map((cell) => Expanded(
-                    child: Text(cell, style: const TextStyle(fontSize: 14)),
-                  )).toList(),
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: tableWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                    ),
+                    child: Row(
+                      children: row.map((cell) => Expanded(
+                        child: Text(cell, style: const TextStyle(fontSize: 14)),
+                      )).toList(),
+                    ),
+                  ),
                 ),
               );
             },
@@ -426,7 +520,11 @@ class _GenericTableCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Expanded(child: _buildContent()),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => _buildContent(constraints.maxWidth),
+              ),
+            ),
           ],
         ),
       ),

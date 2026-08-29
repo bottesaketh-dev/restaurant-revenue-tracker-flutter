@@ -6,9 +6,9 @@ final secureStorageProvider = Provider((ref) => const FlutterSecureStorage());
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
-    baseUrl: 'http://127.0.0.1:8000/api/v1', // Web/Desktop localhost
-    connectTimeout: const Duration(seconds: 5),
-    receiveTimeout: const Duration(seconds: 3),
+    baseUrl: 'https://restaurant-revenue-tracker-flutter.onrender.com/api/v1', // Web/Desktop localhost
+    connectTimeout: const Duration(seconds: 60),
+    receiveTimeout: const Duration(seconds: 60),
   ));
 
   final secureStorage = ref.watch(secureStorageProvider);

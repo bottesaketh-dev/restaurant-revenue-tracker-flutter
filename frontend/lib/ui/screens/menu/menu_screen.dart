@@ -4,6 +4,7 @@ import '../../../theme/app_theme.dart';
 import '../../../core/menu_provider.dart';
 import 'widgets/menu_item_dialog.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/responsive.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
@@ -35,20 +36,27 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
   @override
   Widget build(BuildContext context) {
     final menuAsyncValue = ref.watch(menuNotifierProvider);
+    final isMobile = Responsive.isMobile(context);
 
     return Padding(
-      padding: const EdgeInsets.all(32.0),
+      padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 16,
             children: [
               Text(
                 'Menu Catalog',
-                style: Theme.of(context).textTheme.displayLarge,
+                style: isMobile 
+                    ? Theme.of(context).textTheme.headlineMedium 
+                    : Theme.of(context).textTheme.displayLarge,
               ),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   ElevatedButton.icon(
                     onPressed: () {
@@ -58,14 +66,14 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                       );
                     },
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Item(s) to Menu'),
+                    label: isMobile ? const Text('Add') : const Text('Add Item(s) to Menu'),
                     style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () => ref.read(menuNotifierProvider.notifier).fetchMenu(),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh'),
+                    label: isMobile ? const Text('') : const Text('Refresh'),
                   ),
                 ],
               )
@@ -73,57 +81,109 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
           ),
           const SizedBox(height: 24),
           
-          // Filters Row
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search menu items...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+          // Filters
+          isMobile 
+            ? Column(
+                children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search menu items...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FilterChip(
+                        label: const Text('Only Veg'),
+                        selected: _onlyVeg,
+                        onSelected: (val) {
+                          setState(() {
+                            _onlyVeg = val;
+                            if (val) _onlyNonVeg = false;
+                          });
+                        },
+                        selectedColor: Colors.green.withValues(alpha: 0.2),
+                        checkmarkColor: Colors.green,
+                      ),
+                      const SizedBox(width: 12),
+                      FilterChip(
+                        label: const Text('Only Non-Veg'),
+                        selected: _onlyNonVeg,
+                        onSelected: (val) {
+                          setState(() {
+                            _onlyNonVeg = val;
+                            if (val) _onlyVeg = false;
+                          });
+                        },
+                        selectedColor: AppTheme.error.withValues(alpha: 0.2),
+                        checkmarkColor: AppTheme.error,
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search menu items...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val;
+                        });
+                      },
                     ),
                   ),
-                  onChanged: (val) {
-                    setState(() {
-                      _searchQuery = val;
-                    });
-                  },
-                ),
+                  const SizedBox(width: 24),
+                  FilterChip(
+                    label: const Text('Only Veg'),
+                    selected: _onlyVeg,
+                    onSelected: (val) {
+                      setState(() {
+                        _onlyVeg = val;
+                        if (val) _onlyNonVeg = false;
+                      });
+                    },
+                    selectedColor: Colors.green.withValues(alpha: 0.2),
+                    checkmarkColor: Colors.green,
+                  ),
+                  const SizedBox(width: 12),
+                  FilterChip(
+                    label: const Text('Only Non-Veg'),
+                    selected: _onlyNonVeg,
+                    onSelected: (val) {
+                      setState(() {
+                        _onlyNonVeg = val;
+                        if (val) _onlyVeg = false;
+                      });
+                    },
+                    selectedColor: AppTheme.error.withValues(alpha: 0.2),
+                    checkmarkColor: AppTheme.error,
+                  ),
+                ],
               ),
-              const SizedBox(width: 24),
-              FilterChip(
-                label: const Text('Only Veg'),
-                selected: _onlyVeg,
-                onSelected: (val) {
-                  setState(() {
-                    _onlyVeg = val;
-                    if (val) _onlyNonVeg = false;
-                  });
-                },
-                selectedColor: Colors.green.withValues(alpha: 0.2),
-                checkmarkColor: Colors.green,
-              ),
-              const SizedBox(width: 12),
-              FilterChip(
-                label: const Text('Only Non-Veg'),
-                selected: _onlyNonVeg,
-                onSelected: (val) {
-                  setState(() {
-                    _onlyNonVeg = val;
-                    if (val) _onlyVeg = false;
-                  });
-                },
-                selectedColor: AppTheme.error.withValues(alpha: 0.2),
-                checkmarkColor: AppTheme.error,
-              ),
-            ],
-          ),
           const SizedBox(height: 16),
           
           // Categories
@@ -232,7 +292,59 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                         ),
                         title: Text(item['name'], style: Theme.of(context).textTheme.headlineMedium),
                         subtitle: Text(item['category'], style: Theme.of(context).textTheme.labelSmall),
-                        trailing: Row(
+                        trailing: isMobile ? Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(CurrencyFormatter.format(item['price']), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+                            Switch(
+                              value: item['is_available'] ?? true,
+                              activeThumbColor: Colors.green,
+                              onChanged: (val) async {
+                                final updated = Map<String, dynamic>.from(item);
+                                updated['is_available'] = val;
+                                await ref.read(menuNotifierProvider.notifier).updateMenuItem(item['menu_item_id'], updated);
+                              },
+                            ),
+                            PopupMenuButton<String>(
+                              onSelected: (val) {
+                                if (val == 'edit') {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => MenuItemDialog(item: item),
+                                  );
+                                } else if (val == 'delete') {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Delete Item'),
+                                      content: Text('Are you sure you want to delete ${item['name']}?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                                        TextButton(
+                                          onPressed: () {
+                                            ref.read(menuNotifierProvider.notifier).deleteMenuItem(item['menu_item_id']);
+                                            Navigator.pop(context);
+                                          }, 
+                                          child: const Text('Delete', style: TextStyle(color: AppTheme.error))
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              },
+                              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                const PopupMenuItem<String>(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                const PopupMenuItem<String>(
+                                  value: 'delete',
+                                  child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ) : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(CurrencyFormatter.format(item['price']), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),

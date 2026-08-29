@@ -5,6 +5,7 @@ import '../../../core/menu_provider.dart';
 import '../../../core/kitchen_provider.dart';
 import '../../../core/groceries_provider.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/responsive.dart';
 
 class KitchenScreen extends ConsumerWidget {
   const KitchenScreen({super.key});
@@ -36,19 +37,24 @@ class KitchenScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildToggleBtn('Recipes', KitchenTab.recipes, currentTab, ref),
-                      _buildToggleBtn('Kitchen Stock', KitchenTab.stock, currentTab, ref),
-                    ],
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildToggleBtn('Recipes', KitchenTab.recipes, currentTab, ref),
+                          _buildToggleBtn('Kitchen Stock', KitchenTab.stock, currentTab, ref),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -413,8 +419,8 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 600,
-        padding: const EdgeInsets.all(24),
+        width: Responsive.isMobile(context) ? MediaQuery.of(context).size.width * 0.9 : 600,
+        padding: EdgeInsets.all(Responsive.isMobile(context) ? 16 : 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
