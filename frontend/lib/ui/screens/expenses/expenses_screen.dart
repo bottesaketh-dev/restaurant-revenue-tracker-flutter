@@ -120,7 +120,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                             formData[index]['category_id'] = newCat['expense_category_id'];
                                           });
                                         } catch (e) {
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add category: $e')));
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add category: $e')));
                                           setState(() {
                                             formData[index]['category_id'] = categoriesMap.isNotEmpty ? categoriesMap.keys.first : 1;
                                           });

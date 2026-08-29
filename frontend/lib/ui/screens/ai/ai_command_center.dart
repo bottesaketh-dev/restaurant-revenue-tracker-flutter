@@ -88,12 +88,12 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
     });
   }
 
-  void _updatePlanStatus(String planId, int stepIndex, String status) {
-    setState(() {
-      final msg = _messages.firstWhere((m) => m['type'] == 'plan' && m['id'] == planId);
-      msg['steps'][stepIndex]['status'] = status;
-    });
-  }
+  // void _updatePlanStatus(String planId, int stepIndex, String status) {
+  //   setState(() {
+  //     final msg = _messages.firstWhere((m) => m['type'] == 'plan' && m['id'] == planId);
+  //     msg['steps'][stepIndex]['status'] = status;
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {

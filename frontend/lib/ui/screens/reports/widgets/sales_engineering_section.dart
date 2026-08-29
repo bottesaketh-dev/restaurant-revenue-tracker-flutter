@@ -15,7 +15,7 @@ class SalesEngineeringSection extends ConsumerWidget {
         final topItems = List<Map<String, dynamic>>.from(data['top_items']);
         final bottomItems = List<Map<String, dynamic>>.from(data['bottom_items']);
         final vegSplit = data['veg_split'];
-        final heatmapData = List<Map<String, dynamic>>.from(data['heatmap']);
+        // final heatmapData = List<Map<String, dynamic>>.from(data['heatmap']);
         final discounts = data['discounts'];
 
         return Column(

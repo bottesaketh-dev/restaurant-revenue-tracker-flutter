@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../core/users_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/responsive.dart';
@@ -213,10 +212,10 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
         } else {
           await ref.read(usersProvider.notifier).updateUser(widget.user!['user_id'], data);
         }
-        if (!context.mounted) return;
+        if (!mounted) return;
         Navigator.pop(context);
       } catch (e) {
-        if (!context.mounted) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
@@ -266,7 +265,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _role.toLowerCase(),
+                initialValue: _role.toLowerCase(),
                 decoration: const InputDecoration(labelText: 'Role'),
                 items: rolesSet.map((r) {
                   return DropdownMenuItem(

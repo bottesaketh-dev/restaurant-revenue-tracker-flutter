@@ -24,8 +24,8 @@ class KitchenScreen extends ConsumerWidget {
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
               onPressed: () {
-                ref.refresh(inventoryStockProvider);
-                ref.refresh(menuProvider);
+                ref.invalidate(inventoryStockProvider);
+                ref.invalidate(menuProvider);
               },
             ),
           ),
@@ -568,12 +568,12 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
                         .updateRecipe(widget.menuItem['menu_item_id'], _ingredients);
                     setState(() => _isSaving = false);
                     
-                    if (success && mounted) {
+                    if (success && context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Recipe saved successfully')),
                       );
                       Navigator.pop(context);
-                    } else if (mounted) {
+                    } else if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Failed to save recipe')),
                       );

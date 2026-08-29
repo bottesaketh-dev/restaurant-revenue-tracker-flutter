@@ -125,10 +125,12 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                     
                     try {
                       await ref.read(groceriesProvider.notifier).updateGrocery(purchaseToEdit['grocery_purchase_id'], formData);
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Purchase updated successfully')));
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Purchase updated successfully')));
+                      }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   },
                   child: const Text('Save'),
@@ -232,11 +234,13 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                 if (newCatName != null && newCatName!.trim().isNotEmpty) {
                                   try {
                                     final createdCat = await createGroceryCategory(ref, newCatName!.trim());
+                                    if (!context.mounted) return;
                                     setState(() {
                                       categoriesMap[createdCat['grocery_category_id']] = createdCat['name'];
                                       selectedCatId = createdCat['grocery_category_id'];
                                     });
                                   } catch (e) {
+                                    if (!context.mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add category: $e')));
                                   }
                                 }
@@ -294,11 +298,12 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                     if (newItemName != null && newItemName!.trim().isNotEmpty && newUnit != null && newUnit!.trim().isNotEmpty) {
                                       try {
                                         final newItem = await createGroceryItem(ref, newItemName!.trim(), selectedCatId!, newUnit!.trim());
+                                        if (!context.mounted) return;
                                         setState(() {
                                           itemsMap[newItem['grocery_item_id']] = newItem;
                                         });
                                       } catch (e) {
-                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add item: $e')));
+                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add item: $e')));
                                       }
                                     }
                                   },
@@ -402,10 +407,12 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                     
                     try {
                       await ref.read(groceriesProvider.notifier).addGroceryBulk(finalData);
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${finalData.length} purchases added successfully')));
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${finalData.length} purchases added successfully')));
+                      }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   },
                   child: const Text('Submit Groceries'),
@@ -469,9 +476,9 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                             icon: const Icon(Icons.refresh),
                             label: isMobile ? const Text('') : const Text('Refresh'),
                             onPressed: () {
-                              ref.refresh(groceriesProvider);
-                              ref.refresh(groceryCategoriesProvider);
-                              ref.refresh(groceryItemsProvider);
+                              ref.invalidate(groceriesProvider);
+                              ref.invalidate(groceryCategoriesProvider);
+                              ref.invalidate(groceryItemsProvider);
                             },
                           ),
                           const SizedBox(width: 8),
@@ -624,9 +631,9 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                         if (confirm == true) {
                                           try {
                                             await ref.read(groceriesProvider.notifier).deleteGrocery(p['grocery_purchase_id']);
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
+                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
                                           } catch (e) {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
                                           }
                                         }
                                       },
@@ -665,9 +672,9 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                         if (confirm == true) {
                                           try {
                                             await ref.read(groceriesProvider.notifier).deleteGrocery(p['grocery_purchase_id']);
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
+                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
                                           } catch (e) {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
                                           }
                                         }
                                       },

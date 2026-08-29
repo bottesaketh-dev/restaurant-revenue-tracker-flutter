@@ -114,8 +114,8 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: () {
-                  ref.refresh(posTablesProvider);
-                  ref.refresh(menuProvider);
+                  ref.invalidate(posTablesProvider);
+                  ref.invalidate(menuProvider);
                 },
               ),
               const SizedBox(width: 8),
@@ -162,8 +162,8 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
               onPressed: () {
-                ref.refresh(posTablesProvider);
-                ref.refresh(menuProvider);
+                ref.invalidate(posTablesProvider);
+                ref.invalidate(menuProvider);
               },
             ),
             const SizedBox(width: 16),
@@ -468,9 +468,6 @@ class _CartPanel extends ConsumerWidget {
       subtotal += double.parse(item.menuItem['price'].toString()) * item.quantity;
     }
     double taxes = subtotal * 0.05;
-    double total = subtotal + taxes;
-    
-    final bool hasUnprintedItems = cartItems.any((item) => !item.isKotPrinted);
 
     String title = 'Cart';
     if (mode == OrderMode.dineIn) {
@@ -532,9 +529,9 @@ class _CartPanel extends ConsumerWidget {
                               final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
                               try {
                                 await ref.read(posCartProvider.notifier).printKot(tableId, mode);
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('KOT Sent & Synced to Kitchen!')));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('KOT Sent & Synced to Kitchen!')));
                               } catch(e) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                               }
                             }
                           : null,
@@ -618,29 +615,23 @@ class _CartItemWidget extends ConsumerWidget {
               ],
             ),
           ),
-          if (true) // Allow printed items to be changed now!
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    ref.read(posCartProvider.notifier).updateQuantity(index, -1);
-                  }, 
-                  icon: const Icon(Icons.remove_circle_outline, size: 20)
-                ),
-                Text('${item.quantity}', style: Theme.of(context).textTheme.bodyLarge),
-                IconButton(
-                  onPressed: () {
-                    ref.read(posCartProvider.notifier).updateQuantity(index, 1);
-                  }, 
-                  icon: const Icon(Icons.add_circle_outline, size: 20)
-                ),
-              ],
-            )
-          else 
-            Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Text('${item.quantity}', style: Theme.of(context).textTheme.bodyLarge),
-            )
+          Row(
+            children: [
+              IconButton(
+                onPressed: () {
+                  ref.read(posCartProvider.notifier).updateQuantity(index, -1);
+                }, 
+                icon: const Icon(Icons.remove_circle_outline, size: 20)
+              ),
+              Text('${item.quantity}', style: Theme.of(context).textTheme.bodyLarge),
+              IconButton(
+                onPressed: () {
+                  ref.read(posCartProvider.notifier).updateQuantity(index, 1);
+                }, 
+                icon: const Icon(Icons.add_circle_outline, size: 20)
+              ),
+            ],
+          )
         ],
       ),
     );

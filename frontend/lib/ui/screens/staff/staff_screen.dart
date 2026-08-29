@@ -119,7 +119,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                   keyboardType: TextInputType.number
                                 )),
                                 DataCell(DropdownButtonFormField<String>(
-                                  value: _bulkData[index]['position'],
+                                  initialValue: _bulkData[index]['position'],
                                   items: (rolesSet.contains(_bulkData[index]['position']) ? rolesSet : {...rolesSet, _bulkData[index]['position']}).map((e) => DropdownMenuItem(value: e as String, child: Text(e.toString()))).toList(),
                                   onChanged: (val) {
                                     if (val != null) {
@@ -248,9 +248,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: formData['position'],
+                  initialValue: formData['position'],
                   decoration: const InputDecoration(labelText: 'Position'),
-                  items: rolesSet.map((e) => DropdownMenuItem(value: e as String, child: Text(e.toString()))).toList(),
+                  items: rolesSet.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                   onChanged: (v) => formData['position'] = v,
                 ),
                 const SizedBox(height: 16),
@@ -275,10 +275,14 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
               onPressed: () async {
                 try {
                   await ref.read(staffProvider.notifier).updateEmployee(employee['employee_id'], formData);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee updated successfully')));
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee updated successfully')));
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
                 }
               }, 
               child: const Text('Save Changes')
@@ -354,10 +358,12 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                   onPressed: () async {
                     try {
                       await processSalaryPayment(ref, formData);
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary processed successfully')));
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary processed successfully')));
+                      }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   }, 
                   child: const Text('Confirm Payment')
@@ -491,9 +497,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                       if (confirm == true) {
                                         try {
                                           await ref.read(staffProvider.notifier).deleteEmployee(employee['employee_id']);
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee removed')));
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee removed')));
                                         } catch(e) {
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                                         }
                                       }
                                     },
@@ -529,9 +535,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                       if (confirm == true) {
                                         try {
                                           await ref.read(staffProvider.notifier).deleteEmployee(employee['employee_id']);
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee removed')));
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee removed')));
                                         } catch(e) {
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                                         }
                                       }
                                     },

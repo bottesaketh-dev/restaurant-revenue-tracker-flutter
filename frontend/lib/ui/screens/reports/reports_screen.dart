@@ -60,8 +60,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         return const SingleChildScrollView(child: ExpensesHrSection());
       case ReportsTab.operations:
         return const SingleChildScrollView(child: OperationsSection());
-      default:
-        return const OverviewView();
     }
   }
 
@@ -106,13 +104,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               icon: const Icon(Icons.refresh),
               label: isMobile ? const Text('') : const Text('Refresh'),
               onPressed: () {
-                ref.refresh(homeProvider);
-                ref.refresh(executiveSummaryProvider);
-                ref.refresh(salesEngineeringProvider);
-                ref.refresh(inventorySupplyProvider);
-                ref.refresh(expensesHrProvider);
-                ref.refresh(operationsProvider);
-                ref.refresh(reportsOverviewProvider);
+                ref.invalidate(homeProvider);
+                ref.invalidate(executiveSummaryProvider);
+                ref.invalidate(salesEngineeringProvider);
+                ref.invalidate(inventorySupplyProvider);
+                ref.invalidate(expensesHrProvider);
+                ref.invalidate(operationsProvider);
+                ref.invalidate(reportsOverviewProvider);
               },
             ),
             OutlinedButton.icon(
@@ -202,28 +200,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             fontSize: 16,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildGlassCard({required Widget child, double? height}) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          )
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: child,
       ),
     );
   }

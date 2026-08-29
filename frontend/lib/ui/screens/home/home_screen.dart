@@ -51,14 +51,14 @@ class HomeScreen extends ConsumerWidget {
                     icon: const Icon(Icons.refresh),
                     label: const Text('Refresh'),
                     onPressed: () {
-                      ref.refresh(homeProvider);
+                      ref.invalidate(homeProvider);
                     },
                   )
                 else
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: () {
-                      ref.refresh(homeProvider);
+                      ref.invalidate(homeProvider);
                     },
                   ),
               ],
