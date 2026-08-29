@@ -37,11 +37,11 @@ class _CustomDonutChartState extends State<CustomDonutChart> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.data.isEmpty) {
+    double total = widget.data.fold(0, (sum, item) => sum + item.value);
+
+    if (widget.data.isEmpty || total == 0) {
       return const Center(child: Text('No data available', style: TextStyle(color: Colors.black87)));
     }
-
-    double total = widget.data.fold(0, (sum, item) => sum + item.value);
 
     return Column(
       children: [

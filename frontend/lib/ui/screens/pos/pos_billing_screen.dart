@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/pos_provider.dart';
 import '../../../core/menu_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../../core/responsive.dart';
 import 'widgets/checkout_dialog.dart';
 import 'widgets/manage_tables_dialog.dart';
 import '../../../core/currency_formatter.dart';
@@ -24,46 +25,119 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
 
     final showMenu = mode == OrderMode.takeaway || (mode == OrderMode.dineIn && selectedTable != null);
 
+    final isMobile = Responsive.isMobile(context);
+
     return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left Side: Main Content
-          Expanded(
-            flex: 2,
-            child: Column(
+      padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(mode),
+                _buildHeader(mode, isMobile),
                 const SizedBox(height: 24),
                 Expanded(
                   child: showMenu ? const _MenuOrderingView() : const _TablesGridView(),
                 ),
+                if (mode != OrderMode.dineIn || selectedTable != null) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 350, // Fixed height for cart on mobile to avoid overflow
+                    child: _CartPanel(
+                      mode: mode, 
+                      selectedTable: selectedTable, 
+                      cartItems: cartItems
+                    ),
+                  ),
+                ]
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left Side: Main Content
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(mode, isMobile),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: showMenu ? const _MenuOrderingView() : const _TablesGridView(),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Right Side: Live Cart Panel
+                if (mode == OrderMode.dineIn && selectedTable == null)
+                  const SizedBox.shrink()
+                else ...[
+                  const SizedBox(width: 32),
+                  Expanded(
+                    flex: 1,
+                    child: _CartPanel(
+                      mode: mode, 
+                      selectedTable: selectedTable, 
+                      cartItems: cartItems
+                    ),
+                  ),
+                ]
               ],
             ),
-          ),
-          
-          // Right Side: Live Cart Panel
-          if (mode == OrderMode.dineIn && selectedTable == null)
-            const SizedBox.shrink()
-          else ...[
-            const SizedBox(width: 32),
-            Expanded(
-              flex: 1,
-              child: _CartPanel(
-                mode: mode, 
-                selectedTable: selectedTable, 
-                cartItems: cartItems
-              ),
-            ),
-          ]
-        ],
-      ),
     );
   }
 
-  Widget _buildHeader(OrderMode currentMode) {
+  Widget _buildHeader(OrderMode currentMode, bool isMobile) {
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildToggleBtn('Dine In', OrderMode.dineIn, currentMode),
+                _buildToggleBtn('Takeaway', OrderMode.takeaway, currentMode),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {
+                  ref.invalidate(posTablesProvider);
+                  ref.invalidate(menuProvider);
+                },
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const ManageTablesDialog(),
+                    );
+                  },
+                  icon: const Icon(Icons.table_restaurant),
+                  label: const Text('Manage Tables'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -88,8 +162,8 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
               onPressed: () {
-                ref.refresh(posTablesProvider);
-                ref.refresh(menuProvider);
+                ref.invalidate(posTablesProvider);
+                ref.invalidate(menuProvider);
               },
             ),
             const SizedBox(width: 16),
@@ -150,8 +224,8 @@ class _TablesGridView extends ConsumerWidget {
           return const Center(child: Text("No tables found."));
         }
         return GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: Responsive.isMobile(context) ? 2 : 4,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
             childAspectRatio: 1.2,
@@ -298,11 +372,11 @@ class _MenuOrderingView extends ConsumerWidget {
               }).toList();
 
               return GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: Responsive.isMobile(context) ? 2 : 3,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
-                  childAspectRatio: 1.1,
+                  childAspectRatio: Responsive.isMobile(context) ? 0.9 : 1.1,
                 ),
                 itemCount: filtered.length,
                 itemBuilder: (context, index) {
@@ -394,9 +468,6 @@ class _CartPanel extends ConsumerWidget {
       subtotal += double.parse(item.menuItem['price'].toString()) * item.quantity;
     }
     double taxes = subtotal * 0.05;
-    double total = subtotal + taxes;
-    
-    final bool hasUnprintedItems = cartItems.any((item) => !item.isKotPrinted);
 
     String title = 'Cart';
     if (mode == OrderMode.dineIn) {
@@ -458,9 +529,9 @@ class _CartPanel extends ConsumerWidget {
                               final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
                               try {
                                 await ref.read(posCartProvider.notifier).printKot(tableId, mode);
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('KOT Sent & Synced to Kitchen!')));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('KOT Sent & Synced to Kitchen!')));
                               } catch(e) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                               }
                             }
                           : null,
@@ -544,29 +615,23 @@ class _CartItemWidget extends ConsumerWidget {
               ],
             ),
           ),
-          if (true) // Allow printed items to be changed now!
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    ref.read(posCartProvider.notifier).updateQuantity(index, -1);
-                  }, 
-                  icon: const Icon(Icons.remove_circle_outline, size: 20)
-                ),
-                Text('${item.quantity}', style: Theme.of(context).textTheme.bodyLarge),
-                IconButton(
-                  onPressed: () {
-                    ref.read(posCartProvider.notifier).updateQuantity(index, 1);
-                  }, 
-                  icon: const Icon(Icons.add_circle_outline, size: 20)
-                ),
-              ],
-            )
-          else 
-            Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Text('${item.quantity}', style: Theme.of(context).textTheme.bodyLarge),
-            )
+          Row(
+            children: [
+              IconButton(
+                onPressed: () {
+                  ref.read(posCartProvider.notifier).updateQuantity(index, -1);
+                }, 
+                icon: const Icon(Icons.remove_circle_outline, size: 20)
+              ),
+              Text('${item.quantity}', style: Theme.of(context).textTheme.bodyLarge),
+              IconButton(
+                onPressed: () {
+                  ref.read(posCartProvider.notifier).updateQuantity(index, 1);
+                }, 
+                icon: const Icon(Icons.add_circle_outline, size: 20)
+              ),
+            ],
+          )
         ],
       ),
     );

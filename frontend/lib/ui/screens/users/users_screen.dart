@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../core/users_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../../core/responsive.dart';
 
 class UsersScreen extends ConsumerWidget {
   const UsersScreen({super.key});
@@ -10,23 +10,29 @@ class UsersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(usersProvider);
+    final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'User Management',
-                      style: Theme.of(context).textTheme.displayLarge,
+                      style: isMobile 
+                          ? Theme.of(context).textTheme.headlineMedium 
+                          : Theme.of(context).textTheme.displayLarge,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -206,10 +212,10 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
         } else {
           await ref.read(usersProvider.notifier).updateUser(widget.user!['user_id'], data);
         }
-        if (!context.mounted) return;
+        if (!mounted) return;
         Navigator.pop(context);
       } catch (e) {
-        if (!context.mounted) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
@@ -259,7 +265,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _role.toLowerCase(),
+                initialValue: _role.toLowerCase(),
                 decoration: const InputDecoration(labelText: 'Role'),
                 items: rolesSet.map((r) {
                   return DropdownMenuItem(

@@ -4,6 +4,7 @@ import '../../../theme/app_theme.dart';
 import '../../../core/staff_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/responsive.dart';
 
 class StaffScreen extends ConsumerStatefulWidget {
   const StaffScreen({super.key});
@@ -118,7 +119,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                   keyboardType: TextInputType.number
                                 )),
                                 DataCell(DropdownButtonFormField<String>(
-                                  value: _bulkData[index]['position'],
+                                  initialValue: _bulkData[index]['position'],
                                   items: (rolesSet.contains(_bulkData[index]['position']) ? rolesSet : {...rolesSet, _bulkData[index]['position']}).map((e) => DropdownMenuItem(value: e as String, child: Text(e.toString()))).toList(),
                                   onChanged: (val) {
                                     if (val != null) {
@@ -247,9 +248,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: formData['position'],
+                  initialValue: formData['position'],
                   decoration: const InputDecoration(labelText: 'Position'),
-                  items: rolesSet.map((e) => DropdownMenuItem(value: e as String, child: Text(e.toString()))).toList(),
+                  items: rolesSet.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                   onChanged: (v) => formData['position'] = v,
                 ),
                 const SizedBox(height: 16),
@@ -274,10 +275,14 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
               onPressed: () async {
                 try {
                   await ref.read(staffProvider.notifier).updateEmployee(employee['employee_id'], formData);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee updated successfully')));
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee updated successfully')));
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
                 }
               }, 
               child: const Text('Save Changes')
@@ -353,10 +358,12 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                   onPressed: () async {
                     try {
                       await processSalaryPayment(ref, formData);
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary processed successfully')));
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary processed successfully')));
+                      }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   }, 
                   child: const Text('Confirm Payment')
@@ -377,33 +384,41 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
 
     final currentTab = ref.watch(staffTabProvider);
 
+    final isMobile = Responsive.isMobile(context);
+
     return Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
               children: [
                 Text(
                   'Staff Directory',
-                  style: Theme.of(context).textTheme.displayLarge,
+                  style: isMobile 
+                    ? Theme.of(context).textTheme.headlineMedium 
+                    : Theme.of(context).textTheme.displayLarge,
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     OutlinedButton.icon(
                       onPressed: () => _showBulkOnboardingModal(context),
                       icon: const Icon(Icons.group_add_outlined),
-                      label: const Text('Onboard new employee(s)'),
+                      label: isMobile ? const Text('Onboard') : const Text('Onboard new employee(s)'),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: () {
                         ref.read(staffProvider.notifier).fetchStaff();
                         ref.invalidate(salaryPaymentsProvider);
                       },
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh'),
+                      label: isMobile ? const Text('') : const Text('Refresh'),
                     ),
                   ],
                 )
@@ -454,7 +469,43 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                               ),
                               title: Text(fullName, style: Theme.of(context).textTheme.headlineMedium),
                               subtitle: Text('${employee['position']} • ${employee['phone']}'),
-                              trailing: Row(
+                              trailing: isMobile ? Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, color: AppTheme.primary),
+                                    onPressed: () => _showEditEmployeeModal(context, employee),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: AppTheme.error),
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Remove Employee?'),
+                                          content: const Text('Are you sure you want to deactivate this employee?'),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+                                              onPressed: () => Navigator.pop(ctx, true), 
+                                              child: const Text('Remove', style: TextStyle(color: Colors.white))
+                                            ),
+                                          ],
+                                        )
+                                      );
+                                      if (confirm == true) {
+                                        try {
+                                          await ref.read(staffProvider.notifier).deleteEmployee(employee['employee_id']);
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee removed')));
+                                        } catch(e) {
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                        }
+                                      }
+                                    },
+                                  )
+                                ],
+                              ) : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text('${CurrencyFormatter.format(employee['monthly_salary'])}/mo', style: Theme.of(context).textTheme.bodyLarge),
@@ -484,9 +535,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                       if (confirm == true) {
                                         try {
                                           await ref.read(staffProvider.notifier).deleteEmployee(employee['employee_id']);
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee removed')));
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee removed')));
                                         } catch(e) {
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                                         }
                                       }
                                     },
@@ -508,8 +559,11 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                         // Month/Year Filter
                         Padding(
                           padding: const EdgeInsets.all(24.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 16,
+                            runSpacing: 16,
                             children: [
                               Text('Payroll for ${DateFormat('MMMM yyyy').format(selectedMonthYear)}', style: Theme.of(context).textTheme.headlineMedium),
                               OutlinedButton.icon(
@@ -566,7 +620,26 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                         ),
                                         title: Text(fullName, style: Theme.of(context).textTheme.headlineMedium),
                                         subtitle: Text(isPaid ? 'Paid on ${payment!['payment_date']}' : 'Pending Salary'),
-                                        trailing: Row(
+                                        trailing: isMobile ? Wrap(
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          children: [
+                                            if (isPaid)
+                                              const Chip(
+                                                label: Text('Paid', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                                backgroundColor: Colors.green,
+                                              )
+                                            else
+                                              OutlinedButton(
+                                                onPressed: () => _showProcessSalaryModal(context, employee, selectedMonthYear),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: AppTheme.primary,
+                                                  side: const BorderSide(color: AppTheme.primary),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                ),
+                                                child: const Text('Process'),
+                                              )
+                                          ],
+                                        ) : Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
