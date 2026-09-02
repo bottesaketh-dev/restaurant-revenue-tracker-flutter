@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/pos_provider.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/currency_formatter.dart';
+import '../../../../core/app_notifier.dart';
 
 class CheckoutDialog extends ConsumerStatefulWidget {
   final String tableId;
@@ -58,9 +59,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
   Future<void> _processCheckout() async {
     if (_paymentMode == 'MIXED') {
       if ((mixedTotal - total).abs() > 0.01) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mixed payment amounts (${CurrencyFormatter.format(mixedTotal)}) must equal total (${CurrencyFormatter.format(total)})'))
-        );
+        AppNotifier.showError(context, 'Mixed payment amounts (${CurrencyFormatter.format(mixedTotal)}) must equal total (${CurrencyFormatter.format(total)})');
         return;
       }
     }
@@ -79,11 +78,11 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
       
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Successful! Bill Generated.')));
+        AppNotifier.showSuccess(context, 'Payment Successful! Bill Generated.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppNotifier.showError(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

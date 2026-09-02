@@ -246,8 +246,9 @@ class _DesktopAppBar extends ConsumerWidget {
             builder: (context, ref, child) {
               final branchesAsync = ref.watch(branchListProvider);
               final selectedBranch = ref.watch(selectedBranchProvider);
-              final user = ref.watch(authStateProvider).user;
-              final isAdmin = user?['role'] == 'ADMIN';
+              final authState = ref.watch(authStateProvider);
+              final user = authState.user;
+              final isAdmin = authState.isAdmin;
               final userBranchId = user?['branch_id'];
               
               final currentDisplayBranch = selectedBranch ?? (isAdmin ? null : userBranchId);

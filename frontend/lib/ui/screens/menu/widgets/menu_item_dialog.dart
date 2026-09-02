@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/menu_provider.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../../core/app_notifier.dart';
 
 class _ItemEntry {
   final TextEditingController name;
@@ -105,7 +106,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
       }
 
       if (name.isEmpty || priceStr.isEmpty || category.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill Name, Price, and Category for all entries.')));
+        AppNotifier.showError(context, 'Please fill Name, Price, and Category for all entries.');
         return;
       }
 
@@ -121,7 +122,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
     }
 
     if (validPayloads.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No valid items to save.')));
+      AppNotifier.showError(context, 'No valid items to save.');
       return;
     }
 
@@ -141,11 +142,11 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.item == null ? '${validPayloads.length} item(s) added!' : 'Item updated!')));
+        AppNotifier.showSuccess(context, widget.item == null ? '${validPayloads.length} item(s) added!' : 'Item updated!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppNotifier.showError(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

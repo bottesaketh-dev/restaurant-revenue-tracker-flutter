@@ -6,6 +6,7 @@ import '../../../core/kitchen_provider.dart';
 import '../../../core/groceries_provider.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
+import '../../../core/app_notifier.dart';
 
 class KitchenScreen extends ConsumerWidget {
   const KitchenScreen({super.key});
@@ -569,14 +570,10 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
                     setState(() => _isSaving = false);
                     
                     if (success && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Recipe saved successfully')),
-                      );
+                      AppNotifier.showSuccess(context, 'Recipe saved successfully');
                       Navigator.pop(context);
                     } else if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Failed to save recipe')),
-                      );
+                      AppNotifier.showError(context, 'Failed to save recipe');
                     }
                   },
                   style: ElevatedButton.styleFrom(

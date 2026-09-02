@@ -5,6 +5,7 @@ import '../../../core/expenses_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
+import '../../../core/app_notifier.dart';
 
 class ExpensesScreen extends ConsumerStatefulWidget {
   const ExpensesScreen({super.key});
@@ -120,7 +121,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                             formData[index]['category_id'] = newCat['expense_category_id'];
                                           });
                                         } catch (e) {
-                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add category: $e')));
+                                          if (context.mounted) AppNotifier.showError(context, 'Failed to add category: $e');
                                           setState(() {
                                             formData[index]['category_id'] = categoriesMap.isNotEmpty ? categoriesMap.keys.first : 1;
                                           });

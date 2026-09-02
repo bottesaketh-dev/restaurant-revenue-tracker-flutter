@@ -26,7 +26,7 @@ def get_users(
     user_branch_id = current_user.get("branch_id")
     
     query = db.query(User)
-    if user_role != "ADMIN" and user_branch_id is not None:
+    if (user_role or "").upper() != "ADMIN" and user_branch_id is not None:
         query = query.filter(User.branch_id == user_branch_id)
         
     return query.all()
@@ -51,7 +51,7 @@ def create_user(
     hashed_password = get_password_hash(user.password)
 
     # Only an ADMIN may set access_level/allowed_tabs on another user; others default to FULL access.
-    is_admin = current_user.get("role") == "ADMIN"
+    is_admin = (current_user.get("role") or "").upper() == "ADMIN"
     access_level = user.access_level if is_admin else "FULL"
     allowed_tabs = user.allowed_tabs if (is_admin and access_level == "PARTIAL") else None
     
@@ -86,7 +86,7 @@ def update_user(
 
     # Only an ADMIN can change access_level/allowed_tabs, and only for other users.
     if "access_level" in update_data or "allowed_tabs" in update_data:
-        if current_user.get("role") != "ADMIN":
+        if (current_user.get("role") or "").upper() != "ADMIN":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only an ADMIN can update user access/permissions"
@@ -116,7 +116,7 @@ def update_user_access(
 ):
     """Dedicated endpoint for updating just a user's access level and tab permissions.
     Only an ADMIN is allowed to perform this action."""
-    if current_user.get("role") != "ADMIN":
+    if (current_user.get("role") or "").upper() != "ADMIN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only an ADMIN can update user access/permissions"
