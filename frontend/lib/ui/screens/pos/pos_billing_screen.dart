@@ -7,6 +7,7 @@ import '../../../core/responsive.dart';
 import 'widgets/checkout_dialog.dart';
 import 'widgets/manage_tables_dialog.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/app_notifier.dart';
 
 class PosBillingScreen extends ConsumerStatefulWidget {
   const PosBillingScreen({super.key});
@@ -529,9 +530,9 @@ class _CartPanel extends ConsumerWidget {
                               final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
                               try {
                                 await ref.read(posCartProvider.notifier).printKot(tableId, mode);
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('KOT Sent & Synced to Kitchen!')));
+                                if (context.mounted) AppNotifier.showSuccess(context, 'KOT Sent & Synced to Kitchen!');
                               } catch(e) {
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                if (context.mounted) AppNotifier.showError(context, 'Error: $e');
                               }
                             }
                           : null,

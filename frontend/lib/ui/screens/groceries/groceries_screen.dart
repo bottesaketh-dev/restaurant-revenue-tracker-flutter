@@ -5,6 +5,7 @@ import '../../../core/groceries_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
+import '../../../core/app_notifier.dart';
 
 class GroceriesScreen extends ConsumerStatefulWidget {
   const GroceriesScreen({super.key});
@@ -117,7 +118,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                     double? qty = double.tryParse(formData['quantity']);
                     double? total = double.tryParse(formData['total_price']);
                     if (qty == null || total == null || qty <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid quantity and total price.')));
+                      AppNotifier.showError(context, 'Please enter valid quantity and total price.');
                       return;
                     }
                     // Calculate unit price
@@ -127,10 +128,10 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                       await ref.read(groceriesProvider.notifier).updateGrocery(purchaseToEdit['grocery_purchase_id'], formData);
                       if (context.mounted) {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Purchase updated successfully')));
+                        AppNotifier.showSuccess(context, 'Purchase updated successfully');
                       }
                     } catch (e) {
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      if (context.mounted) AppNotifier.showError(context, 'Error: $e');
                     }
                   },
                   child: const Text('Save'),
@@ -241,7 +242,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                     });
                                   } catch (e) {
                                     if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add category: $e')));
+                                    AppNotifier.showError(context, 'Failed to add category: $e');
                                   }
                                 }
                               },
@@ -303,7 +304,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                           itemsMap[newItem['grocery_item_id']] = newItem;
                                         });
                                       } catch (e) {
-                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add item: $e')));
+                                        if (context.mounted) AppNotifier.showError(context, 'Failed to add item: $e');
                                       }
                                     }
                                   },
@@ -401,7 +402,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                     }
                     
                     if (finalData.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No valid items entered. Please enter quantity and total price.')));
+                      AppNotifier.showError(context, 'No valid items entered. Please enter quantity and total price.');
                       return;
                     }
                     
@@ -409,10 +410,10 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                       await ref.read(groceriesProvider.notifier).addGroceryBulk(finalData);
                       if (context.mounted) {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${finalData.length} purchases added successfully')));
+                        AppNotifier.showSuccess(context, '${finalData.length} purchases added successfully');
                       }
                     } catch (e) {
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      if (context.mounted) AppNotifier.showError(context, 'Error: $e');
                     }
                   },
                   child: const Text('Submit Groceries'),
@@ -631,9 +632,9 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                         if (confirm == true) {
                                           try {
                                             await ref.read(groceriesProvider.notifier).deleteGrocery(p['grocery_purchase_id']);
-                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
+                                            if (context.mounted) AppNotifier.showSuccess(context, 'Deleted successfully');
                                           } catch (e) {
-                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+                                            if (context.mounted) AppNotifier.showError(context, 'Failed to delete: $e');
                                           }
                                         }
                                       },
@@ -672,9 +673,9 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                         if (confirm == true) {
                                           try {
                                             await ref.read(groceriesProvider.notifier).deleteGrocery(p['grocery_purchase_id']);
-                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
+                                            if (context.mounted) AppNotifier.showSuccess(context, 'Deleted successfully');
                                           } catch (e) {
-                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+                                            if (context.mounted) AppNotifier.showError(context, 'Failed to delete: $e');
                                           }
                                         }
                                       },

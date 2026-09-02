@@ -5,6 +5,7 @@ import '../../../core/users_provider.dart';
 import '../../../core/branch_provider.dart';
 import '../../../core/auth_provider.dart';
 import '../../../core/nav_tabs.dart';
+import '../../../core/app_notifier.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/responsive.dart';
 
@@ -202,12 +203,10 @@ class _UserRowState extends ConsumerState<_UserRow> {
             _accessLevel == 'PARTIAL' ? _selectedTabs.toList() : null,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Access updated for ${widget.user['username']}')),
-      );
+      AppNotifier.showSuccess(context, 'Access updated for ${widget.user['username']}');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      AppNotifier.showError(context, e.toString());
     }
   }
 
@@ -379,7 +378,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
       try {
         if (widget.user == null) {
           if (_password.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password is required for new users')));
+            AppNotifier.showError(context, 'Password is required for new users');
             return;
           }
           await ref.read(usersProvider.notifier).addUser(data);
@@ -390,7 +389,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
         Navigator.pop(context);
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        AppNotifier.showError(context, e.toString());
       }
     }
   }

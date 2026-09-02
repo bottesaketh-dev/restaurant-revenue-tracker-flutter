@@ -29,19 +29,19 @@ class FlavorsLedgerApp extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     final router = GoRouter(
-      initialLocation: authState.isAuthenticated ? '/home' : '/login',
+      initialLocation: authState.isAuthenticated ? authState.landingRoute : '/login',
       redirect: (context, state) {
         final isLoggedIn = authState.isAuthenticated;
         final path = state.uri.toString();
         final isGoingToLogin = path == '/login';
 
         if (!isLoggedIn && !isGoingToLogin) return '/login';
-        if (isLoggedIn && isGoingToLogin) return '/home';
+        if (isLoggedIn && isGoingToLogin) return authState.landingRoute;
 
         if (isLoggedIn && !isGoingToLogin) {
           final tab = kNavTabs.where((t) => t.route == path).cast<NavTab?>().firstWhere((t) => t != null, orElse: () => null);
           if (tab != null && !authState.canAccessTab(tab.key)) {
-            return '/home';
+            return authState.landingRoute;
           }
         }
         return null;

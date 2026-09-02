@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
+import 'nav_tabs.dart';
 
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(ref.watch(dioProvider), ref.watch(secureStorageProvider));
@@ -23,7 +24,7 @@ class AuthState {
     );
   }
 
-  bool get isAdmin => user?['role'] == 'ADMIN';
+  bool get isAdmin => (user?['role'] as String?)?.toUpperCase() == 'ADMIN';
 
   String get accessLevel => (user?['access_level'] as String?) ?? 'FULL';
 
@@ -39,6 +40,13 @@ class AuthState {
     final tabs = allowedTabs;
     if (tabs == null) return true; // FULL access
     return tabs.contains(tabKey);
+  }
+
+  /// The route the user should land on after login/app start: their first
+  /// accessible tab, falling back to '/home' if they somehow have none.
+  String get landingRoute {
+    final accessible = kNavTabs.where((t) => canAccessTab(t.key));
+    return accessible.isEmpty ? '/home' : accessible.first.route;
   }
 }
 

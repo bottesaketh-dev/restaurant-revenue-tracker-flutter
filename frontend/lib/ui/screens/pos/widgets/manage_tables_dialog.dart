@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/pos_provider.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../../core/app_notifier.dart';
 
 class _TableEntry {
   final TextEditingController tableId;
@@ -81,11 +82,11 @@ class _ManageTablesDialogState extends ConsumerState<ManageTablesDialog> {
         _existingEntries.removeAt(index);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Table ${entry.tableId.text} deleted')));
+        AppNotifier.showSuccess(context, 'Table ${entry.tableId.text} deleted');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppNotifier.showError(context, 'Error: $e');
       }
     }
   }
@@ -125,11 +126,11 @@ class _ManageTablesDialogState extends ConsumerState<ManageTablesDialog> {
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tables saved successfully!')));
+        AppNotifier.showSuccess(context, 'Tables saved successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppNotifier.showError(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
