@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/users_provider.dart';
 import '../../../core/branch_provider.dart';
+import '../../../core/auth_provider.dart';
+import '../../../core/nav_tabs.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/responsive.dart';
 
@@ -13,6 +16,7 @@ class UsersScreen extends ConsumerWidget {
     final usersAsync = ref.watch(usersProvider);
     final branchesAsync = ref.watch(branchListProvider);
     final isMobile = Responsive.isMobile(context);
+    final isAdmin = ref.watch(authStateProvider).isAdmin;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -80,51 +84,17 @@ class UsersScreen extends ConsumerWidget {
                       separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200),
                       itemBuilder: (context, index) {
                         final user = users[index];
-                        final isActive = user['is_active'] ?? true;
                         final branchId = user['branch_id'];
                         final branchName = branchId == null
                             ? 'All Branches'
                             : (branchNameById[branchId] ?? 'Branch #$branchId');
                         
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                            child: const Icon(Icons.person, color: AppTheme.primary),
-                          ),
-                          title: Text(
-                            user['username'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text('${user['email']} • Role: ${user['role']} • Branch: $branchName'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isActive ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  isActive ? 'Active' : 'Inactive',
-                                  style: TextStyle(
-                                    color: isActive ? Colors.green : Colors.red,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _showUserDialog(context, ref, user),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteUser(context, ref, user),
-                              ),
-                            ],
-                          ),
+                        return _UserRow(
+                          user: user,
+                          branchName: branchName,
+                          isAdmin: isAdmin,
+                          onEdit: () => _showUserDialog(context, ref, user),
+                          onDelete: () => _deleteUser(context, ref, user),
                         );
                       },
                     );
@@ -166,6 +136,197 @@ class UsersScreen extends ConsumerWidget {
             },
             child: const Text('Delete'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UserRow extends ConsumerStatefulWidget {
+  final Map<String, dynamic> user;
+  final String branchName;
+  final bool isAdmin;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _UserRow({
+    required this.user,
+    required this.branchName,
+    required this.isAdmin,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  ConsumerState<_UserRow> createState() => _UserRowState();
+}
+
+class _UserRowState extends ConsumerState<_UserRow> {
+  late String _accessLevel;
+  late Set<String> _selectedTabs;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetFromUser();
+  }
+
+  @override
+  void didUpdateWidget(covariant _UserRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user['user_id'] != widget.user['user_id']) {
+      _resetFromUser();
+    }
+  }
+
+  void _resetFromUser() {
+    _accessLevel = (widget.user['access_level'] as String?) ?? 'FULL';
+    final tabs = widget.user['allowed_tabs'];
+    _selectedTabs = tabs is List ? tabs.map((e) => e.toString()).toSet() : <String>{};
+  }
+
+  bool get _isDirty {
+    final originalLevel = (widget.user['access_level'] as String?) ?? 'FULL';
+    final originalTabs = widget.user['allowed_tabs'];
+    final originalSet = originalTabs is List ? originalTabs.map((e) => e.toString()).toSet() : <String>{};
+    if (_accessLevel != originalLevel) return true;
+    if (_accessLevel == 'PARTIAL' && !setEquals(_selectedTabs, originalSet)) return true;
+    return false;
+  }
+
+  Future<void> _saveAccess() async {
+    try {
+      await ref.read(usersProvider.notifier).updateAccess(
+            widget.user['user_id'],
+            _accessLevel,
+            _accessLevel == 'PARTIAL' ? _selectedTabs.toList() : null,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Access updated for ${widget.user['username']}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.user;
+    final isActive = user['is_active'] ?? true;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                child: const Icon(Icons.person, color: AppTheme.primary),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user['username'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text('${user['email']} • Role: ${user['role']} • Branch: ${widget.branchName}'),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isActive ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  isActive ? 'Active' : 'Inactive',
+                  style: TextStyle(
+                    color: isActive ? Colors.green : Colors.red,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue),
+                onPressed: widget.onEdit,
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: widget.onDelete,
+              ),
+            ],
+          ),
+          if (widget.isAdmin) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 56),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('Access:', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 12),
+                      DropdownButton<String>(
+                        value: _accessLevel,
+                        items: const [
+                          DropdownMenuItem(value: 'FULL', child: Text('Full Access')),
+                          DropdownMenuItem(value: 'PARTIAL', child: Text('Partial Access')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setState(() => _accessLevel = val);
+                        },
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: _isDirty ? _saveAccess : null,
+                        icon: const Icon(Icons.save, size: 18),
+                        label: const Text('Save'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_accessLevel == 'PARTIAL') ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 0,
+                      children: [
+                        for (final tab in kNavTabs)
+                          FilterChip(
+                            label: Text(tab.label),
+                            selected: _selectedTabs.contains(tab.key),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedTabs.add(tab.key);
+                                } else {
+                                  _selectedTabs.remove(tab.key);
+                                }
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

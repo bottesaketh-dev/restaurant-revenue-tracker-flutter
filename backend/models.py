@@ -35,6 +35,8 @@ class User(Base):
     role = Column(String)
     branch_id = Column(Integer, ForeignKey("branches.branch_id"), nullable=True)
     is_active = Column(Boolean, default=True)
+    access_level = Column(String, default="FULL", nullable=False)
+    allowed_tabs = Column(Text, nullable=True)  # JSON-encoded list of tab keys, used when access_level is PARTIAL
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 

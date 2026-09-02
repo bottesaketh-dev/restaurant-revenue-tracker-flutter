@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+import json
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import date, datetime, time
 from decimal import Decimal
@@ -23,12 +24,33 @@ class TokenResponse(BaseModel):
     user: dict
 
 # Users
+VALID_TABS = ["home", "users", "pos", "menu", "staff", "groceries", "kitchen", "expenses", "reports", "ai"]
+
 class UserBase(BaseModel):
     username: str
     email: str
     role: str
     branch_id: Optional[int] = None
     is_active: bool = True
+    access_level: str = "FULL"
+    allowed_tabs: Optional[List[str]] = None
+
+    @field_validator("access_level")
+    @classmethod
+    def validate_access_level(cls, v):
+        if v not in ("FULL", "PARTIAL"):
+            raise ValueError("access_level must be 'FULL' or 'PARTIAL'")
+        return v
+
+    @field_validator("allowed_tabs")
+    @classmethod
+    def validate_allowed_tabs(cls, v):
+        if v is None:
+            return v
+        invalid = [t for t in v if t not in VALID_TABS]
+        if invalid:
+            raise ValueError(f"Invalid tab(s): {invalid}. Valid tabs: {VALID_TABS}")
+        return v
 
 class UserCreate(UserBase):
     password: str
@@ -40,11 +62,62 @@ class UserUpdate(BaseModel):
     branch_id: Optional[int] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    access_level: Optional[str] = None
+    allowed_tabs: Optional[List[str]] = None
+
+    @field_validator("access_level")
+    @classmethod
+    def validate_access_level(cls, v):
+        if v is not None and v not in ("FULL", "PARTIAL"):
+            raise ValueError("access_level must be 'FULL' or 'PARTIAL'")
+        return v
+
+    @field_validator("allowed_tabs")
+    @classmethod
+    def validate_allowed_tabs(cls, v):
+        if v is None:
+            return v
+        invalid = [t for t in v if t not in VALID_TABS]
+        if invalid:
+            raise ValueError(f"Invalid tab(s): {invalid}. Valid tabs: {VALID_TABS}")
+        return v
+
+class AccessUpdate(BaseModel):
+    access_level: str
+    allowed_tabs: Optional[List[str]] = None
+
+    @field_validator("access_level")
+    @classmethod
+    def validate_access_level(cls, v):
+        if v not in ("FULL", "PARTIAL"):
+            raise ValueError("access_level must be 'FULL' or 'PARTIAL'")
+        return v
+
+    @field_validator("allowed_tabs")
+    @classmethod
+    def validate_allowed_tabs(cls, v):
+        if v is None:
+            return v
+        invalid = [t for t in v if t not in VALID_TABS]
+        if invalid:
+            raise ValueError(f"Invalid tab(s): {invalid}. Valid tabs: {VALID_TABS}")
+        return v
 
 class UserResponse(UserBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("allowed_tabs", mode="before")
+    @classmethod
+    def parse_allowed_tabs(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return v
+
     class Config:
         from_attributes = True
 

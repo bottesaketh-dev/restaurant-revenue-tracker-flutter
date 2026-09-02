@@ -15,6 +15,7 @@ import 'ui/screens/ai/ai_command_center.dart';
 import 'ui/screens/kitchen/kitchen_screen.dart';
 import 'ui/screens/users/users_screen.dart';
 import 'core/auth_provider.dart';
+import 'core/nav_tabs.dart';
 
 void main() {
   runApp(const ProviderScope(child: FlavorsLedgerApp()));
@@ -31,10 +32,18 @@ class FlavorsLedgerApp extends ConsumerWidget {
       initialLocation: authState.isAuthenticated ? '/home' : '/login',
       redirect: (context, state) {
         final isLoggedIn = authState.isAuthenticated;
-        final isGoingToLogin = state.uri.toString() == '/login';
+        final path = state.uri.toString();
+        final isGoingToLogin = path == '/login';
 
         if (!isLoggedIn && !isGoingToLogin) return '/login';
         if (isLoggedIn && isGoingToLogin) return '/home';
+
+        if (isLoggedIn && !isGoingToLogin) {
+          final tab = kNavTabs.where((t) => t.route == path).cast<NavTab?>().firstWhere((t) => t != null, orElse: () => null);
+          if (tab != null && !authState.canAccessTab(tab.key)) {
+            return '/home';
+          }
+        }
         return null;
       },
       routes: [

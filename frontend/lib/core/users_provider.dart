@@ -42,6 +42,18 @@ class UsersNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>
     }
   }
 
+  Future<void> updateAccess(int userId, String accessLevel, List<String>? allowedTabs) async {
+    try {
+      await _dio.put('/users/$userId/access', data: {
+        'access_level': accessLevel,
+        'allowed_tabs': allowedTabs,
+      });
+      fetchUsers();
+    } catch (e) {
+      throw Exception('Failed to update access: $e');
+    }
+  }
+
   Future<void> deleteUser(int userId) async {
     try {
       await _dio.delete('/users/$userId');

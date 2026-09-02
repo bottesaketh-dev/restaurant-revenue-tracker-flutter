@@ -22,6 +22,24 @@ class AuthState {
       user: user ?? this.user,
     );
   }
+
+  bool get isAdmin => user?['role'] == 'ADMIN';
+
+  String get accessLevel => (user?['access_level'] as String?) ?? 'FULL';
+
+  /// Tab keys the current user is allowed to see. Null/FULL access means all tabs.
+  List<String>? get allowedTabs {
+    if (accessLevel != 'PARTIAL') return null;
+    final tabs = user?['allowed_tabs'];
+    if (tabs is List) return tabs.map((e) => e.toString()).toList();
+    return const [];
+  }
+
+  bool canAccessTab(String tabKey) {
+    final tabs = allowedTabs;
+    if (tabs == null) return true; // FULL access
+    return tabs.contains(tabKey);
+  }
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {

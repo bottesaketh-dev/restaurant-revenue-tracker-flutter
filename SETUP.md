@@ -72,7 +72,15 @@ GITHUB_TOKEN=<github-token-with-model-access>
 
 `GITHUB_TOKEN` is required only for the AI chat features.
 
-3. Start the API:
+3. If you already have an existing `users` table (created before the user
+   access-control feature was added), run the migration once to add the new
+   `access_level` and `allowed_tabs` columns:
+
+```powershell
+python migrations\add_user_access_control.py
+```
+
+4. Start the API:
 
 ```powershell
 uvicorn main:app --reload

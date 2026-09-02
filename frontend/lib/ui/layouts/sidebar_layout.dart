@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../core/branch_provider.dart';
+import '../../core/nav_tabs.dart';
 
 // Providers for Sidebar State
 final isSidebarCollapsedProvider = StateProvider<bool>((ref) => false);
@@ -21,6 +22,8 @@ class SidebarLayout extends ConsumerWidget {
     
     final isCollapsed = ref.watch(isSidebarCollapsedProvider);
     final width = ref.watch(sidebarWidthProvider);
+    final authState = ref.watch(authStateProvider);
+    final visibleTabs = kNavTabs.where((tab) => authState.canAccessTab(tab.key)).toList();
     
     final currentWidth = isCollapsed ? 80.0 : width;
 
@@ -65,76 +68,14 @@ class SidebarLayout extends ConsumerWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _SidebarItem(
-                  icon: Icons.dashboard_outlined,
-                  label: 'Home',
-                  isSelected: currentPath == '/home',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/home'),
-                ),
-                _SidebarItem(
-                  icon: Icons.group_outlined,
-                  label: 'Users',
-                  isSelected: currentPath == '/users',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/users'),
-                ),
-                _SidebarItem(
-                  icon: Icons.point_of_sale_outlined,
-                  label: 'POS Billing',
-                  isSelected: currentPath == '/pos',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/pos'),
-                ),
-                _SidebarItem(
-                  icon: Icons.restaurant_menu,
-                  label: 'Menu Catalog',
-                  isSelected: currentPath == '/menu',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/menu'),
-                ),
-                _SidebarItem(
-                  icon: Icons.people_outline,
-                  label: 'Staff Directory',
-                  isSelected: currentPath == '/staff',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/staff'),
-                ),
-                _SidebarItem(
-                  icon: Icons.kitchen,
-                  label: 'Groceries',
-                  isSelected: currentPath == '/groceries',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/groceries'),
-                ),
-                _SidebarItem(
-                  icon: Icons.inventory_2_outlined,
-                  label: 'Kitchen & Recipes',
-                  isSelected: currentPath == '/kitchen',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/kitchen'),
-                ),
-                _SidebarItem(
-                  icon: Icons.payments,
-                  label: 'General Expenses',
-                  isSelected: currentPath == '/expenses',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/expenses'),
-                ),
-                _SidebarItem(
-                  icon: Icons.analytics_outlined,
-                  label: 'Reports',
-                  isSelected: currentPath == '/reports',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/reports'),
-                ),
-                _SidebarItem(
-                  icon: Icons.auto_awesome,
-                  label: 'AI Command Center',
-                  isSelected: currentPath == '/ai',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/ai'),
-                ),
+                for (final tab in visibleTabs)
+                  _SidebarItem(
+                    icon: tab.icon,
+                    label: tab.label,
+                    isSelected: currentPath == tab.route,
+                    isCollapsed: isCollapsed,
+                    onTap: () => context.go(tab.route),
+                  ),
               ],
             ),
           ),
