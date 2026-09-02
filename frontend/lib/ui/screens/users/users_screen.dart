@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/users_provider.dart';
+import '../../../core/branch_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/responsive.dart';
 
@@ -10,6 +11,7 @@ class UsersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(usersProvider);
+    final branchesAsync = ref.watch(branchListProvider);
     final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
@@ -68,6 +70,10 @@ class UsersScreen extends ConsumerWidget {
                     if (users.isEmpty) {
                       return const Center(child: Text('No users found.'));
                     }
+                    final branches = branchesAsync.value ?? [];
+                    final branchNameById = {
+                      for (final b in branches) b['branch_id']: b['name'],
+                    };
                     return ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: users.length,
@@ -75,6 +81,10 @@ class UsersScreen extends ConsumerWidget {
                       itemBuilder: (context, index) {
                         final user = users[index];
                         final isActive = user['is_active'] ?? true;
+                        final branchId = user['branch_id'];
+                        final branchName = branchId == null
+                            ? 'All Branches'
+                            : (branchNameById[branchId] ?? 'Branch #$branchId');
                         
                         return ListTile(
                           leading: CircleAvatar(
@@ -85,7 +95,7 @@ class UsersScreen extends ConsumerWidget {
                             user['username'] ?? '',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          subtitle: Text('${user['email']} • Role: ${user['role']}'),
+                          subtitle: Text('${user['email']} • Role: ${user['role']} • Branch: $branchName'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -175,6 +185,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
   late String _username;
   late String _email;
   late String _role;
+  int? _branchId;
   String _password = '';
   late bool _isActive;
 
@@ -184,6 +195,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
     _username = widget.user?['username'] ?? '';
     _email = widget.user?['email'] ?? '';
     _role = widget.user?['role'] ?? 'staff';
+    _branchId = widget.user?['branch_id'];
     _isActive = widget.user?['is_active'] ?? true;
   }
 
@@ -195,6 +207,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
         'username': _username,
         'email': _email,
         'role': _role,
+        'branch_id': _branchId,
         'is_active': _isActive,
       };
 
@@ -275,6 +288,30 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
                 }).toList(),
                 onChanged: (val) {
                   if (val != null) setState(() => _role = val);
+                },
+              ),
+              const SizedBox(height: 16),
+              Consumer(
+                builder: (context, ref, _) {
+                  final branchesAsync = ref.watch(branchListProvider);
+                  final branches = branchesAsync.value ?? [];
+                  return DropdownButtonFormField<int?>(
+                    initialValue: _branchId,
+                    decoration: const InputDecoration(labelText: 'Branch'),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('All Branches'),
+                      ),
+                      ...branches.map((b) {
+                        return DropdownMenuItem<int?>(
+                          value: b['branch_id'] as int?,
+                          child: Text(b['name'] ?? 'Branch #${b['branch_id']}'),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) => setState(() => _branchId = val),
+                  );
                 },
               ),
               const SizedBox(height: 16),

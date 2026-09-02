@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import '../widgets/ai_chat_bubble.dart';
 import '../../core/branch_provider.dart';
 
 // Providers for Sidebar State
@@ -196,27 +195,22 @@ class SidebarLayout extends ConsumerWidget {
     );
 
     return Scaffold(
-      body: Stack(
+      body: Row(
         children: [
-          Row(
-            children: [
-              if (isDesktop) sidebarWithDragHandle,
-              Expanded(
-                child: Column(
-                  children: [
-                    if (isDesktop) _DesktopAppBar(),
-                    Expanded(
-                      child: Container(
-                        color: AppTheme.background,
-                        child: child,
-                      ),
-                    ),
-                  ],
+          if (isDesktop) sidebarWithDragHandle,
+          Expanded(
+            child: Column(
+              children: [
+                if (isDesktop) _DesktopAppBar(),
+                Expanded(
+                  child: Container(
+                    color: AppTheme.background,
+                    child: child,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const AiChatBubble(),
         ],
       ),
       drawer: isDesktop ? null : Drawer(child: sidebarContent),
