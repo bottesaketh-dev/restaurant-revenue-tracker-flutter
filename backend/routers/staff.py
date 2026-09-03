@@ -6,16 +6,23 @@ import models, schemas, security
 
 router = APIRouter(prefix="/api/v1/employees", tags=["employees"])
 
+def _resolve_branch(current_user: dict, branch_id: Optional[int] = None, require_branch: bool = False) -> Optional[int]:
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        return user_branch_id
+    b_id = branch_id or user_branch_id
+    if require_branch and b_id is None:
+        raise HTTPException(status_code=400, detail="branch_id is required for this operation")
+    return b_id
+
 @router.get("/", response_model=List[schemas.EmployeeResponse])
 def get_employees(
     branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    user_role = token_data.get("role")
-    user_branch_id = token_data.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
+    branch_id = _resolve_branch(token_data, branch_id)
         
     query = db.query(models.Employee)
     if branch_id:
@@ -25,12 +32,11 @@ def get_employees(
 @router.post("/", response_model=schemas.EmployeeResponse)
 def create_employee(
     emp: schemas.EmployeeCreate,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    user_role = token_data.get("role")
-    user_branch_id = token_data.get("branch_id")
-    b_id = user_branch_id if user_role != "ADMIN" and user_branch_id else (emp.branch_id or 1)
+    b_id = _resolve_branch(token_data, emp.branch_id or branch_id, require_branch=True)
     
     # Check if exists
     exists = db.query(models.Employee).filter(models.Employee.employee_id == emp.employee_id).first()
@@ -53,11 +59,12 @@ def create_employee(
 @router.post("/bulk", response_model=List[schemas.EmployeeResponse])
 def bulk_create_employees(
     emps: List[schemas.EmployeeCreate],
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
     from datetime import datetime
-    b_id = token_data.get("branch_id") or 1
+    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
     db_emps = []
     today = datetime.now().date()
     for emp in emps:
@@ -78,10 +85,11 @@ def bulk_create_employees(
 def update_employee(
     employee_id: str,
     emp: schemas.EmployeeCreate,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
+    b_id = _resolve_branch(token_data, emp.branch_id or branch_id, require_branch=True)
     db_emp = db.query(models.Employee).filter(
         models.Employee.employee_id == employee_id,
         models.Employee.branch_id == b_id
@@ -99,10 +107,11 @@ def update_employee(
 @router.delete("/{employee_id}")
 def delete_employee(
     employee_id: str,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
+    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
     db_emp = db.query(models.Employee).filter(
         models.Employee.employee_id == employee_id,
         models.Employee.branch_id == b_id
@@ -118,10 +127,11 @@ def delete_employee(
 def get_salary_payments(
     month: Optional[int] = None,
     year: Optional[int] = None,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
+    b_id = _resolve_branch(token_data, branch_id)
     query = db.query(models.SalaryPayment).filter(models.SalaryPayment.branch_id == b_id)
     if month:
         query = query.filter(models.SalaryPayment.payment_month == month)
@@ -132,11 +142,12 @@ def get_salary_payments(
 @router.post("/salary", response_model=schemas.SalaryPaymentResponse)
 def process_salary_payment(
     payment: schemas.SalaryPaymentCreate,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
     from datetime import datetime
-    b_id = token_data.get("branch_id") or 1
+    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
     user_id = token_data.get("user_id") or 1
 
     # Get employee base salary

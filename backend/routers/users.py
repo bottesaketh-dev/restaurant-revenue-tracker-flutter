@@ -37,6 +37,8 @@ def create_user(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user_token)
 ):
+    if current_user.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only administrators can create users")
     # Check if username or email already exists
     existing_user = db.query(User).filter(
         (User.username == user.username) | (User.email == user.email)
@@ -78,6 +80,8 @@ def update_user(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user_token)
 ):
+    if current_user.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only administrators can update users")
     db_user = db.query(User).filter(User.user_id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -142,6 +146,8 @@ def delete_user(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user_token)
 ):
+    if current_user.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only administrators can delete users")
     db_user = db.query(User).filter(User.user_id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")

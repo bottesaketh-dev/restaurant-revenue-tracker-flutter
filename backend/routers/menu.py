@@ -25,7 +25,7 @@ def get_menu_items(
     if category:
         query = query.filter(models.MenuItem.category == category)
         
-    return query.all()
+    return query.order_by(models.MenuItem.menu_item_id).all()
 
 @router.post("/items", response_model=schemas.MenuItemResponse)
 def create_menu_item(
@@ -33,7 +33,9 @@ def create_menu_item(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1 # Default to branch 1 for owner
+    b_id = token_data.get("branch_id")
+    if b_id is None:
+        raise HTTPException(status_code=400, detail="branch_id is required to create a menu item")
     db_item = models.MenuItem(**item.model_dump(), branch_id=b_id)
     db.add(db_item)
     db.commit()
@@ -46,7 +48,9 @@ def bulk_create_menu_items(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
+    b_id = token_data.get("branch_id")
+    if b_id is None:
+        raise HTTPException(status_code=400, detail="branch_id is required to bulk create menu items")
     db_items = [models.MenuItem(**item.model_dump(), branch_id=b_id) for item in items]
     db.add_all(db_items)
     db.commit()

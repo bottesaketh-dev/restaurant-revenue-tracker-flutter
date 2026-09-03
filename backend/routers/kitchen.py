@@ -9,18 +9,11 @@ router = APIRouter(prefix="/api/v1/kitchen", tags=["kitchen"])
 
 @router.get("/inventory", response_model=List[schemas.InventoryStockResponse])
 def get_inventory(db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
+    # InventoryStock is global across branches
     return db.query(models.InventoryStock).all()
 
 @router.get("/recipes/{menu_item_id}", response_model=List[schemas.RecipeIngredientResponse])
 def get_recipe(menu_item_id: int, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     return db.query(models.RecipeIngredient).filter(models.RecipeIngredient.menu_item_id == menu_item_id).all()
 
 @router.post("/recipes/{menu_item_id}")

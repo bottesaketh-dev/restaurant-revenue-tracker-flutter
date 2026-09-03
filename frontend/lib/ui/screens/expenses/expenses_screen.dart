@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/expenses_provider.dart';
+import '../../../core/branch_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
@@ -264,6 +265,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
 
     final isMobile = Responsive.isMobile(context);
+    final branchId = ref.watch(selectedBranchProvider);
+    final canAdd = branchId != null;
 
     return Padding(
       padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
@@ -287,7 +290,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => _showExpenseModal(context, Map.from(categoriesMap)),
+                    onPressed: canAdd ? () => _showExpenseModal(context, Map.from(categoriesMap)) : null,
                     icon: const Icon(Icons.add),
                     label: isMobile ? const Text('Add') : const Text('Add Expense(s)'),
                   ),
@@ -420,12 +423,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _showExpenseModal(context, Map.from(categoriesMap), expenseToEdit: exp),
+                              icon: Icon(Icons.edit, color: canAdd ? Colors.blue : Colors.grey),
+                              onPressed: canAdd ? () => _showExpenseModal(context, Map.from(categoriesMap), expenseToEdit: exp) : null,
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _confirmDelete(context, exp['expense_id']),
+                              icon: Icon(Icons.delete, color: canAdd ? Colors.red : Colors.grey),
+                              onPressed: canAdd ? () => _confirmDelete(context, exp['expense_id']) : null,
                             ),
                           ],
                         ) : Row(
@@ -437,12 +440,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                             )),
                             const SizedBox(width: 32),
                             IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _showExpenseModal(context, Map.from(categoriesMap), expenseToEdit: exp),
+                              icon: Icon(Icons.edit, color: canAdd ? Colors.blue : Colors.grey),
+                              onPressed: canAdd ? () => _showExpenseModal(context, Map.from(categoriesMap), expenseToEdit: exp) : null,
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _confirmDelete(context, exp['expense_id']),
+                              icon: Icon(Icons.delete, color: canAdd ? Colors.red : Colors.grey),
+                              onPressed: canAdd ? () => _confirmDelete(context, exp['expense_id']) : null,
                             ),
                           ],
                         ),

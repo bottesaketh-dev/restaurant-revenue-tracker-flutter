@@ -158,7 +158,9 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
     };
 
     try {
-      await _dio.post('/billing/tables/$tableId/kot', data: requestData);
+      final branchId = _ref.read(selectedBranchProvider);
+      final queryParams = branchId != null ? {'branch_id': branchId} : null;
+      await _dio.post('/billing/tables/$tableId/kot', data: requestData, queryParameters: queryParams);
       
       // Mark as printed
       state = state.map((item) {
@@ -226,7 +228,9 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
         "card_amount": cardAmount,
       };
       
-      await _dio.post('/billing/tables/$tableId/checkout', data: requestData);
+      final branchId = _ref.read(selectedBranchProvider);
+      final queryParams = branchId != null ? {'branch_id': branchId} : null;
+      await _dio.post('/billing/tables/$tableId/checkout', data: requestData, queryParameters: queryParams);
       
       // Clear cart locally
       state = [];

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/groceries_provider.dart';
+import '../../../core/branch_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
@@ -290,7 +291,9 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                         actions: [
                                           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
                                           ElevatedButton(
-                                            onPressed: () => Navigator.pop(context),
+                                            onPressed: (newItemName?.isNotEmpty ?? false) && (newUnit?.isNotEmpty ?? false)
+                                                ? () => Navigator.pop(context)
+                                                : null,
                                             child: const Text('Add'),
                                           ),
                                         ],
@@ -434,6 +437,8 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
     
     final currentCatFilter = ref.watch(groceryCategoryFilterProvider);
     final currentDateRange = ref.watch(groceryDateRangeProvider);
+    final branchId = ref.watch(selectedBranchProvider);
+    final canAdd = branchId != null;
 
     return categoriesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -484,7 +489,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
-                            onPressed: () => _showBulkAddGroceryModal(context, itemsMap, categoriesMap),
+                            onPressed: canAdd ? () => _showBulkAddGroceryModal(context, itemsMap, categoriesMap) : null,
                             icon: const Icon(Icons.add),
                             label: isMobile ? const Text('Add') : const Text('Add Grocery(s)'),
                           ),
@@ -608,12 +613,12 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _showEditGroceryModal(context, itemsMap, categoriesMap, p),
+                                      icon: Icon(Icons.edit, color: canAdd ? Colors.blue : Colors.grey),
+                                      onPressed: canAdd ? () => _showEditGroceryModal(context, itemsMap, categoriesMap, p) : null,
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () async {
+                                      icon: Icon(Icons.delete, color: canAdd ? Colors.red : Colors.grey),
+                                      onPressed: canAdd ? () async {
                                         final confirm = await showDialog<bool>(
                                           context: context,
                                           builder: (ctx) => AlertDialog(
@@ -637,7 +642,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                             if (context.mounted) AppNotifier.showError(context, 'Failed to delete: $e');
                                           }
                                         }
-                                      },
+                                      } : null,
                                     ),
                                   ],
                                 ) : Row(
@@ -649,12 +654,12 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                     )),
                                     const SizedBox(width: 32),
                                     IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _showEditGroceryModal(context, itemsMap, categoriesMap, p),
+                                      icon: Icon(Icons.edit, color: canAdd ? Colors.blue : Colors.grey),
+                                      onPressed: canAdd ? () => _showEditGroceryModal(context, itemsMap, categoriesMap, p) : null,
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () async {
+                                      icon: Icon(Icons.delete, color: canAdd ? Colors.red : Colors.grey),
+                                      onPressed: canAdd ? () async {
                                         final confirm = await showDialog<bool>(
                                           context: context,
                                           builder: (ctx) => AlertDialog(
@@ -678,7 +683,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                             if (context.mounted) AppNotifier.showError(context, 'Failed to delete: $e');
                                           }
                                         }
-                                      },
+                                      } : null,
                                     ),
                                   ],
                                 ),

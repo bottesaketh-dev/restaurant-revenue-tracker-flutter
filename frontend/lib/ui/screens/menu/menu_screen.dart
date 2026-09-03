@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/menu_provider.dart';
+import '../../../core/branch_provider.dart';
 import 'widgets/menu_item_dialog.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
@@ -37,6 +38,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
   Widget build(BuildContext context) {
     final menuAsyncValue = ref.watch(menuNotifierProvider);
     final isMobile = Responsive.isMobile(context);
+    final branchId = ref.watch(selectedBranchProvider);
+    final canAdd = branchId != null;
 
     return Padding(
       padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
@@ -59,12 +62,12 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ElevatedButton.icon(
-                    onPressed: () {
+                    onPressed: canAdd ? () {
                       showDialog(
                         context: context,
                         builder: (context) => const MenuItemDialog(),
                       );
-                    },
+                    } : null,
                     icon: const Icon(Icons.add),
                     label: isMobile ? const Text('Add') : const Text('Add Item(s) to Menu'),
                     style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
@@ -251,19 +254,22 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                         leading: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                width: 48,
+                                height: 48,
                                 color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                                image: item['image_url'] != null && item['image_url'].toString().isNotEmpty
-                                    ? DecorationImage(image: NetworkImage(item['image_url']), fit: BoxFit.cover)
-                                    : null,
+                                child: item['image_url'] != null && item['image_url'].toString().isNotEmpty
+                                    ? Image.network(
+                                        item['image_url'],
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return const Icon(Icons.fastfood, color: Colors.grey);
+                                        },
+                                      )
+                                    : const Icon(Icons.fastfood, color: Colors.grey),
                               ),
-                              child: item['image_url'] == null || item['image_url'].toString().isEmpty
-                                  ? const Icon(Icons.fastfood, color: Colors.grey)
-                                  : null,
                             ),
                             const SizedBox(width: 16),
                             Container(
@@ -299,13 +305,14 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                             Switch(
                               value: item['is_available'] ?? true,
                               activeThumbColor: Colors.green,
-                              onChanged: (val) async {
+                              onChanged: canAdd ? (val) async {
                                 final updated = Map<String, dynamic>.from(item);
                                 updated['is_available'] = val;
                                 await ref.read(menuNotifierProvider.notifier).updateMenuItem(item['menu_item_id'], updated);
-                              },
+                              } : null,
                             ),
                             PopupMenuButton<String>(
+                              enabled: canAdd,
                               onSelected: (val) {
                                 if (val == 'edit') {
                                   showDialog(
@@ -352,25 +359,25 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                             Switch(
                               value: item['is_available'] ?? true,
                               activeThumbColor: Colors.green,
-                              onChanged: (val) async {
+                              onChanged: canAdd ? (val) async {
                                 final updated = Map<String, dynamic>.from(item);
                                 updated['is_available'] = val;
                                 await ref.read(menuNotifierProvider.notifier).updateMenuItem(item['menu_item_id'], updated);
-                              },
+                              } : null,
                             ),
                             const SizedBox(width: 16),
                             IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () {
+                              icon: Icon(Icons.edit, color: canAdd ? Colors.blue : Colors.grey),
+                              onPressed: canAdd ? () {
                                 showDialog(
                                   context: context,
                                   builder: (context) => MenuItemDialog(item: item),
                                 );
-                              },
+                              } : null,
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete, color: AppTheme.error),
-                              onPressed: () {
+                              icon: Icon(Icons.delete, color: canAdd ? AppTheme.error : Colors.grey),
+                              onPressed: canAdd ? () {
                                 showDialog(
                                   context: context,
                                   builder: (context) => AlertDialog(
@@ -388,7 +395,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                                     ],
                                   ),
                                 );
-                              },
+                              } : null,
                             ),
                           ],
                         ),

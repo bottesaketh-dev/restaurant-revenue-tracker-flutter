@@ -13,6 +13,7 @@ import 'widgets/expenses_hr_section.dart';
 import 'widgets/operations_section.dart';
 
 import '../../../core/home_provider.dart';
+import '../../../core/api_client.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -146,13 +147,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
             ),
             PopupMenuButton<String>(
-              onSelected: (format) {
+              onSelected: (format) async {
                 final range = ref.read(dateRangeProvider);
+                final storage = ref.read(secureStorageProvider);
+                final token = await storage.read(key: 'jwt_token');
+
                 String url = 'http://localhost:8000/api/v1/reports/export?format=$format';
                 if (range != null) {
                   final start = DateFormat('yyyy-MM-dd').format(range.start);
                   final end = DateFormat('yyyy-MM-dd').format(range.end);
                   url += '&start_date=$start&end_date=$end';
+                }
+                if (token != null) {
+                  url += '&token=$token';
                 }
                 launchUrl(Uri.parse(url));
               },

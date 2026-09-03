@@ -27,8 +27,16 @@ if not logger.handlers:
 
 
 class RestaurantAgent:
+    # Tables the AI agent is allowed to query (excludes 'users' to protect credentials)
+    SAFE_TABLES = [
+        "bills", "orders", "order_items", "menu_items", "expenses", "expense_categories",
+        "grocery_purchases", "grocery_items", "grocery_categories", "employees",
+        "branches", "inventory_stock", "recipe_ingredients", "salary_payments",
+        "restaurant_tables",
+    ]
+
     def __init__(self):
-        self.sql_db = SQLDatabase(engine)
+        self.sql_db = SQLDatabase(engine, include_tables=self.SAFE_TABLES)
 
         if "GPT_4O_MINI" not in LLM_INSTANCES:
             raise ValueError("GPT_4O_MINI model configuration is missing in LLM_INSTANCES.")

@@ -1,29 +1,45 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from database import get_db
 import models, schemas, security
 from typing import List, Optional
 from datetime import datetime, date
 import uuid
+from decimal import Decimal
 
 router = APIRouter(prefix="/api/v1/groceries", tags=["groceries"])
+
+def _resolve_branch(current_user: dict, branch_id: Optional[int] = None, require_branch: bool = False) -> Optional[int]:
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        return user_branch_id
+    b_id = branch_id or user_branch_id
+    if require_branch and b_id is None:
+        raise HTTPException(status_code=400, detail="branch_id is required for this operation")
+    return b_id
+
+def _upsert_inventory_stock(db: Session, grocery_item_id: str, quantity: Decimal):
+    """H-02: Upsert inventory stock to prevent duplicate key errors on concurrent inserts."""
+    stmt = pg_insert(models.InventoryStock).values(
+        grocery_item_id=grocery_item_id,
+        current_stock=quantity
+    ).on_conflict_do_update(
+        index_elements=['grocery_item_id'],
+        set_={'current_stock': models.InventoryStock.current_stock + quantity,
+              'last_updated': datetime.now()}
+    )
+    db.execute(stmt)
 
 # --- Categories ---
 
 @router.get("/categories", response_model=List[schemas.GroceryCategoryResponse])
 def get_categories(db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     return db.query(models.GroceryCategory).filter(models.GroceryCategory.is_active == True).all()
 
 @router.post("/categories", response_model=schemas.GroceryCategoryResponse)
 def create_category(category: schemas.GroceryCategoryCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     db_cat = models.GroceryCategory(
         name=category.name,
         description=category.description,
@@ -38,10 +54,6 @@ def create_category(category: schemas.GroceryCategoryCreate, db: Session = Depen
 
 @router.get("/items", response_model=List[schemas.GroceryItemResponse])
 def get_items(category_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     query = db.query(models.GroceryItem).filter(models.GroceryItem.is_active == True)
     if category_id:
         query = query.filter(models.GroceryItem.category_id == category_id)
@@ -49,10 +61,6 @@ def get_items(category_id: Optional[int] = None, db: Session = Depends(get_db), 
 
 @router.post("/items", response_model=schemas.GroceryItemResponse)
 def create_item(item: schemas.GroceryItemCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     db_item = models.GroceryItem(
         grocery_item_id=uuid.uuid4().hex,
         product_name=item.product_name,
@@ -74,8 +82,10 @@ def get_purchases(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     category_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(security.get_current_user_token)  # H-05: Added auth
 ):
+    b_id = _resolve_branch(current_user, branch_id)
     query = db.query(
         models.GroceryPurchase,
         models.GroceryItem.product_name,
@@ -84,8 +94,8 @@ def get_purchases(
         models.GroceryItem,
         models.GroceryPurchase.grocery_item_id == models.GroceryItem.grocery_item_id
     )
-    if branch_id:
-        query = query.filter(models.GroceryPurchase.branch_id == branch_id)
+    if b_id:
+        query = query.filter(models.GroceryPurchase.branch_id == b_id)
         
     if start_date:
         query = query.filter(models.GroceryPurchase.purchase_date >= start_date)
@@ -114,11 +124,8 @@ def get_purchases(
     return result
 
 @router.post("/purchases")
-def add_purchase(data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
+def add_purchase(data: schemas.GroceryPurchaseCreate, branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    b_id = _resolve_branch(current_user, branch_id, require_branch=True)
     now = datetime.now()
     new_purchase = models.GroceryPurchase(
         purchase_date=data.purchase_date,
@@ -129,33 +136,22 @@ def add_purchase(data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_
         total_price=data.quantity * data.unit_price,
         vendor_name=data.vendor_name,
         notes=data.notes,
-        recorded_by=1, # Default user
-        branch_id=1,   # Default branch
+        recorded_by=current_user["user_id"],  # L-03: Use JWT user_id
+        branch_id=b_id,                        # L-03: Use JWT branch
         created_at=now
     )
     db.add(new_purchase)
     
-    # Update inventory stock
-    stock = db.query(models.InventoryStock).filter(models.InventoryStock.grocery_item_id == data.grocery_item_id).first()
-    if stock:
-        stock.current_stock += data.quantity
-    else:
-        new_stock = models.InventoryStock(
-            grocery_item_id=data.grocery_item_id,
-            current_stock=data.quantity
-        )
-        db.add(new_stock)
+    # H-02: Upsert inventory stock
+    _upsert_inventory_stock(db, data.grocery_item_id, data.quantity)
         
     db.commit()
     db.refresh(new_purchase)
     return new_purchase
 
 @router.post("/purchases/bulk")
-def add_purchase_bulk(purchases: List[schemas.GroceryPurchaseCreate], db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
+def add_purchase_bulk(purchases: List[schemas.GroceryPurchaseCreate], branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    b_id = _resolve_branch(current_user, branch_id, require_branch=True)
     now = datetime.now()
     db_purchases = []
     
@@ -169,21 +165,13 @@ def add_purchase_bulk(purchases: List[schemas.GroceryPurchaseCreate], db: Sessio
             total_price=p.quantity * p.unit_price,
             vendor_name=p.vendor_name,
             notes=p.notes,
-            recorded_by=1, # Default user
-            branch_id=1,   # Default branch
+            recorded_by=current_user["user_id"],  # L-03: Use JWT user_id
+            branch_id=b_id,                        # L-03: Use JWT branch
             created_at=now
         ))
         
-        # Update inventory stock
-        stock = db.query(models.InventoryStock).filter(models.InventoryStock.grocery_item_id == p.grocery_item_id).first()
-        if stock:
-            stock.current_stock += p.quantity
-        else:
-            new_stock = models.InventoryStock(
-                grocery_item_id=p.grocery_item_id,
-                current_stock=p.quantity
-            )
-            db.add(new_stock)
+        # H-02: Upsert inventory stock (prevents duplicate key errors)
+        _upsert_inventory_stock(db, p.grocery_item_id, p.quantity)
             
     db.add_all(db_purchases)
     db.commit()
@@ -191,13 +179,25 @@ def add_purchase_bulk(purchases: List[schemas.GroceryPurchaseCreate], db: Sessio
 
 @router.put("/purchases/{purchase_id}")
 def update_purchase(purchase_id: int, data: schemas.GroceryPurchaseCreate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     db_purchase = db.query(models.GroceryPurchase).filter(models.GroceryPurchase.grocery_purchase_id == purchase_id).first()
     if not db_purchase:
         raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # L-05: Adjust inventory for quantity change
+    old_quantity = db_purchase.quantity
+    old_item_id = db_purchase.grocery_item_id
+    new_quantity = data.quantity
+    
+    # Reverse old stock addition
+    if old_item_id:
+        old_stock = db.query(models.InventoryStock).filter(
+            models.InventoryStock.grocery_item_id == old_item_id
+        ).with_for_update().first()
+        if old_stock:
+            old_stock.current_stock = max(old_stock.current_stock - old_quantity, Decimal(0))
+    
+    # Apply new stock addition
+    _upsert_inventory_stock(db, data.grocery_item_id, new_quantity)
         
     db_purchase.purchase_date = data.purchase_date
     db_purchase.grocery_item_id = data.grocery_item_id
@@ -213,10 +213,6 @@ def update_purchase(purchase_id: int, data: schemas.GroceryPurchaseCreate, db: S
 
 @router.delete("/purchases/{purchase_id}")
 def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     db_purchase = db.query(models.GroceryPurchase).filter(models.GroceryPurchase.grocery_purchase_id == purchase_id).first()
     if not db_purchase:
         raise HTTPException(status_code=404, detail="Purchase not found")

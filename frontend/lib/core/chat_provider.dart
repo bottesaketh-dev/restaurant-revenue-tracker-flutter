@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'api_client.dart';
 import 'branch_provider.dart';
 
 final chatStreamProvider = Provider((ref) => ChatStreamService(ref));
@@ -12,15 +13,21 @@ class ChatStreamService {
 
   ChatStreamService(this._ref);
 
+  String get _baseUrl {
+    final dio = _ref.read(dioProvider);
+    return dio.options.baseUrl;
+  }
+
   Stream<Map<String, dynamic>> sendQuery(String message) async* {
     final token = await _storage.read(key: 'jwt_token');
-    
-    final request = http.Request('POST', Uri.parse('https://restaurant-revenue-tracker-flutter.onrender.com/api/v1/chat'));
+
+    final request =
+        http.Request('POST', Uri.parse('${_baseUrl}/chat'));
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
     request.headers['Content-Type'] = 'application/json';
-    
+
     final branchId = _ref.read(selectedBranchProvider);
     request.body = jsonEncode({
       'message': message,
@@ -35,7 +42,9 @@ class ChatStreamService {
       return;
     }
 
-    await for (final line in response.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+    await for (final line in response.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())) {
       if (line.trim().isEmpty) continue;
       try {
         final data = jsonDecode(line);
