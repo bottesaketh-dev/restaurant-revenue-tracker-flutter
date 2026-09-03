@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, desc
 from typing import Optional
@@ -19,7 +19,7 @@ def get_date_range(start_date: Optional[str], end_date: Optional[str]):
     if end_date:
         try:
             end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except:
+        except (ValueError, TypeError):
             end_d = today
     else:
         end_d = today
@@ -27,7 +27,7 @@ def get_date_range(start_date: Optional[str], end_date: Optional[str]):
     if start_date:
         try:
             start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
-        except:
+        except (ValueError, TypeError):
             start_d = end_d - timedelta(days=30)
     else:
         start_d = end_d - timedelta(days=30)
@@ -68,7 +68,7 @@ def get_profit_loss(branch_id: Optional[int] = None, start_date: Optional[str] =
     opex_sal_q = db.query(func.sum(models.SalaryPayment.net_salary)).filter(
         models.SalaryPayment.payment_year == end_d.year,
         models.SalaryPayment.payment_month == end_d.month,
-        models.SalaryPayment.payment_status == 'paid',
+        models.SalaryPayment.payment_status.ilike('paid'),
         models.SalaryPayment.branch_id == b_id
     )
     opex_sal = opex_sal_q.scalar() or Decimal('0.00')
@@ -162,7 +162,7 @@ def get_metrics_summary(branch_id: Optional[int] = None, start_date: Optional[st
     opex_sal_q = db.query(func.sum(models.SalaryPayment.net_salary)).filter(
         models.SalaryPayment.payment_year == end_d.year,
         models.SalaryPayment.payment_month == end_d.month,
-        models.SalaryPayment.payment_status == 'paid',
+        models.SalaryPayment.payment_status.ilike('paid'),
         models.SalaryPayment.branch_id == b_id
     )
     opex_sal = opex_sal_q.scalar() or Decimal('0.00')
@@ -277,15 +277,23 @@ def get_branch_comparison(start_date: Optional[str] = None, end_date: Optional[s
     return [{"branch_name": name, "revenue": float(rev or 0)} for name, rev in q]
 
 @router.get("/export")
-def export_report(format: str = "csv", branch_id: Optional[int] = 0, start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+def export_report(
+    format: str = "csv", 
+    branch_id: Optional[int] = 0, 
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None, 
+    token: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    current_user = security.decode_token(token)
     user_role = current_user.get("role")
     user_branch_id = current_user.get("branch_id")
     if user_role != "ADMIN" and user_branch_id is not None:
         branch_id = user_branch_id
-    summary = get_metrics_summary(branch_id, start_date, end_date, db)
-    trends = get_sales_trends(branch_id, start_date, end_date, db)
-    categories = get_category_revenue(branch_id, start_date, end_date, db)
-    expenses = get_expense_breakdown(branch_id, start_date, end_date, db)
+    summary = get_metrics_summary(branch_id, start_date, end_date, db, current_user)
+    trends = get_sales_trends(branch_id, start_date, end_date, db, current_user)
+    categories = get_category_revenue(branch_id, start_date, end_date, db, current_user)
+    expenses = get_expense_breakdown(branch_id, start_date, end_date, db, current_user)
 
     if format == "pdf":
         pdf = FPDF()

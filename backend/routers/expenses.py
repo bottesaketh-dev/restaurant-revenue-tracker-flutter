@@ -7,6 +7,16 @@ from datetime import datetime
 
 router = APIRouter(prefix="/api/v1/expenses", tags=["expenses"])
 
+def _resolve_branch(current_user: dict, branch_id: Optional[int] = None, require_branch: bool = False) -> Optional[int]:
+    user_role = current_user.get("role")
+    user_branch_id = current_user.get("branch_id")
+    if user_role != "ADMIN" and user_branch_id is not None:
+        return user_branch_id
+    b_id = branch_id or user_branch_id
+    if require_branch and b_id is None:
+        raise HTTPException(status_code=400, detail="branch_id is required for this operation")
+    return b_id
+
 @router.get("/", response_model=List[schemas.ExpenseResponse])
 def get_expenses(
     branch_id: Optional[int] = None,
@@ -16,11 +26,7 @@ def get_expenses(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    user_role = token_data.get("role")
-    user_branch_id = token_data.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
-    b_id = branch_id
+    b_id = _resolve_branch(token_data, branch_id)
     query = db.query(models.Expense)
     if b_id:
         query = query.filter(models.Expense.branch_id == b_id)
@@ -53,11 +59,12 @@ def _resolve_category(db: Session, category_id: Optional[int], new_category_name
 @router.post("/", response_model=schemas.ExpenseResponse)
 def create_expense(
     expense: schemas.ExpenseCreate,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
-    u_id = int(token_data.get("sub"))
+    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
+    u_id = token_data["user_id"]
     
     cat_id = _resolve_category(db, expense.category_id, expense.new_category_name)
     exp_dict = expense.model_dump(exclude={"new_category_name"})
@@ -75,11 +82,12 @@ def create_expense(
 @router.post("/bulk", response_model=List[schemas.ExpenseResponse])
 def bulk_create_expenses(
     expenses: List[schemas.ExpenseCreate],
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
-    u_id = int(token_data.get("sub"))
+    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
+    u_id = token_data["user_id"]
     
     from datetime import datetime
     current_time = datetime.now().time()
@@ -98,13 +106,14 @@ def bulk_create_expenses(
     return db_expenses
 
 @router.get("/categories", response_model=List[schemas.ExpenseCategoryResponse])
-def get_expense_categories(db: Session = Depends(get_db)):
+def get_expense_categories(db: Session = Depends(get_db), token_data: dict = Depends(security.get_current_user_token)):
     return db.query(models.ExpenseCategory).all()
 
 @router.post("/categories", response_model=schemas.ExpenseCategoryResponse)
 def create_expense_category(
     category: schemas.ExpenseCategoryCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(security.get_current_user_token)
 ):
     db_category = models.ExpenseCategory(**category.model_dump())
     db.add(db_category)
@@ -116,10 +125,11 @@ def create_expense_category(
 def update_expense(
     expense_id: int,
     expense: schemas.ExpenseCreate,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
+    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
     db_expense = db.query(models.Expense).filter(models.Expense.expense_id == expense_id, models.Expense.branch_id == b_id).first()
     
     if not db_expense:
@@ -139,10 +149,11 @@ def update_expense(
 @router.delete("/{expense_id}")
 def delete_expense(
     expense_id: int,
+    branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = token_data.get("branch_id") or 1
+    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
     db_expense = db.query(models.Expense).filter(models.Expense.expense_id == expense_id, models.Expense.branch_id == b_id).first()
     
     if not db_expense:

@@ -58,7 +58,8 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic
 
   Future<void> addExpenseBulk(List<Map<String, dynamic>> items) async {
     try {
-      await _dio.post('/expenses/bulk', data: items);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.post('/expenses/bulk', data: items, queryParameters: queryParams);
       fetchExpenses();
     } catch (e) {
       throw Exception('Failed to bulk add: $e');
@@ -67,7 +68,8 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic
 
   Future<void> addExpense(Map<String, dynamic> item) async {
     try {
-      await _dio.post('/expenses/', data: item);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.post('/expenses/', data: item, queryParameters: queryParams);
       fetchExpenses();
     } catch (e) {
       throw Exception('Failed to add expense: $e');
@@ -76,7 +78,8 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic
 
   Future<void> updateExpense(int expenseId, Map<String, dynamic> item) async {
     try {
-      await _dio.put('/expenses/$expenseId', data: item);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.put('/expenses/$expenseId', data: item, queryParameters: queryParams);
       fetchExpenses();
     } catch (e) {
       throw Exception('Failed to update expense: $e');
@@ -85,7 +88,8 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic
 
   Future<void> deleteExpense(int expenseId) async {
     try {
-      await _dio.delete('/expenses/$expenseId');
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.delete('/expenses/$expenseId', queryParameters: queryParams);
       fetchExpenses();
     } catch (e) {
       throw Exception('Failed to delete expense: $e');

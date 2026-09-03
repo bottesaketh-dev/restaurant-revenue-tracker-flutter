@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 import models
 from database import engine
 
@@ -8,11 +9,15 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Flavors Ledger API", version="1.0.0")
 
-# CORS setup
+# CORS setup — configurable via ALLOWED_ORIGINS env var (comma-separated)
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+allowed_origins = [o for o in allowed_origins if o]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=allowed_origins if allowed_origins else ["http://localhost"],
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

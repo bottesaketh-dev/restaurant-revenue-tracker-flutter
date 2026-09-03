@@ -1,32 +1,42 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas, security
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime
+from decimal import Decimal
+from uuid import uuid4
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
-@router.get("/tables", response_model=List[schemas.TableResponse])
-def get_tables(branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+TAX_RATE = Decimal(os.getenv("TAX_RATE", "0.05"))
+
+def _resolve_branch(current_user: dict, branch_id: Optional[int] = None, require_branch: bool = False) -> Optional[int]:
+    """Cleanly resolve the effective branch_id from JWT claims."""
     user_role = current_user.get("role")
     user_branch_id = current_user.get("branch_id")
     if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
+        return user_branch_id
+    b_id = branch_id or user_branch_id
+    if require_branch and b_id is None:
+        raise HTTPException(status_code=400, detail="branch_id is required for this operation")
+    return b_id
+
+@router.get("/tables", response_model=List[schemas.TableResponse])
+def get_tables(branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    b_id = _resolve_branch(current_user, branch_id)
     query = db.query(models.RestaurantTable).filter(models.RestaurantTable.is_active == True)
-    if branch_id:
-        query = query.filter(models.RestaurantTable.branch_id == branch_id)
+    if b_id:
+        query = query.filter(models.RestaurantTable.branch_id == b_id)
     return query.all()
 
 @router.post("/tables/bulk", response_model=List[schemas.TableResponse])
-def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = 1, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
+def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    b_id = _resolve_branch(current_user, branch_id, require_branch=True)
     created = []
     for t in tables:
-        # Check if table exists
         existing = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == t.table_id).first()
         if existing:
             existing.capacity = t.capacity
@@ -39,7 +49,7 @@ def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = 
                 table_id=t.table_id,
                 capacity=t.capacity,
                 status="available",
-                branch_id=branch_id,
+                branch_id=b_id,
                 is_active=True
             )
             db.add(new_table)
@@ -51,19 +61,11 @@ def create_tables(tables: List[schemas.TableCreate], branch_id: Optional[int] = 
 
 @router.put("/tables/{table_id}", response_model=schemas.TableResponse)
 def update_table(table_id: str, table_update: schemas.TableUpdate, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     db_table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
     if not db_table:
         raise HTTPException(status_code=404, detail="Table not found")
     
     update_data = table_update.model_dump(exclude_unset=True)
-    if 'table_id' in update_data and update_data['table_id'] != table_id:
-        # Need to handle ID change if necessary, but usually we don't change primary keys
-        pass
-
     for key, value in update_data.items():
         if key != 'table_id':
             setattr(db_table, key, value)
@@ -74,10 +76,6 @@ def update_table(table_id: str, table_update: schemas.TableUpdate, db: Session =
 
 @router.delete("/tables/{table_id}")
 def delete_table(table_id: str, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     db_table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
     if not db_table:
         raise HTTPException(status_code=404, detail="Table not found")
@@ -88,10 +86,6 @@ def delete_table(table_id: str, db: Session = Depends(get_db), current_user: dic
 
 @router.get("/tables/{table_id}/order", response_model=Optional[schemas.OrderResponse])
 def get_active_order(table_id: str, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
     order = db.query(models.Order).filter(
         models.Order.table_id == table_id,
         models.Order.status == 'active'
@@ -111,14 +105,8 @@ class KotRequest(BaseModel):
     order_type: str = "dine_in" # dine_in or takeaway
 
 @router.post("/tables/{table_id}/kot")
-def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
-    from datetime import datetime
-    from decimal import Decimal
-    from uuid import uuid4
+def submit_kot(table_id: str, request: KotRequest, branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    b_id = _resolve_branch(current_user, branch_id, require_branch=True)
     
     # Find active order
     order = db.query(models.Order).filter(
@@ -129,12 +117,9 @@ def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)
     # Handle order cancellation when cart is completely empty
     if not request.items:
         if order:
-            # Delete order items
             db.query(models.OrderItem).filter(models.OrderItem.order_id == order.order_id).delete()
-            # Delete the order itself
             db.delete(order)
             
-            # Revert table status to available if dine_in
             if request.order_type == "dine_in" and table_id != "TAKEAWAY":
                 table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
                 if table:
@@ -144,7 +129,6 @@ def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)
         return {"status": "deleted"}
     
     if not order:
-        # Create new order
         # Ensure TAKEAWAY table exists if order_type is takeaway
         if request.order_type == "takeaway":
             takeaway_table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == "TAKEAWAY").first()
@@ -154,18 +138,16 @@ def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)
                     capacity=0,
                     status="available",
                     branch_id=1,
-                    is_active=False # Keep it hidden from the UI
+                    is_active=False
                 )
                 db.add(takeaway_table)
                 db.flush()
 
-        b_id = branch_id if locals().get('branch_id') else (user_branch_id or 1)
-        
         order = models.Order(
-            order_id=f"ORD-{uuid4().hex[:6].upper()}",
+            order_id=f"ORD-{uuid4().hex[:12].upper()}",
             table_id=table_id if request.order_type == "dine_in" else "TAKEAWAY",
             status="active",
-            created_by=current_user.get("user_id", 1),
+            created_by=current_user["user_id"],
             branch_id=b_id,
             created_at=datetime.now(),
             updated_at=datetime.now()
@@ -174,8 +156,6 @@ def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)
         db.flush()
     else:
         order.updated_at = datetime.now()
-    
-    # Sync items completely
     
     # Remove existing items to do a full sync with the frontend cart
     db.query(models.OrderItem).filter(models.OrderItem.order_id == order.order_id).delete()
@@ -192,7 +172,7 @@ def submit_kot(table_id: str, request: KotRequest, db: Session = Depends(get_db)
         )
         db.add(order_item)
         
-    # Mark table as occupied for dine in regardless of new or existing order
+    # Mark table as occupied for dine in
     if request.order_type == "dine_in" and table_id != "TAKEAWAY":
         table = db.query(models.RestaurantTable).filter(models.RestaurantTable.table_id == table_id).first()
         if table:
@@ -210,14 +190,8 @@ class CheckoutRequest(BaseModel):
     card_amount: float = 0.0
 
 @router.post("/tables/{table_id}/checkout")
-def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
-    user_role = current_user.get("role")
-    user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        branch_id = user_branch_id
-    from datetime import datetime
-    from decimal import Decimal
-    from uuid import uuid4
+def checkout(table_id: str, request: CheckoutRequest, branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    b_id = _resolve_branch(current_user, branch_id, require_branch=True)
     
     # 1. Fetch active order
     order = db.query(models.Order).filter(
@@ -231,15 +205,13 @@ def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_
     # 2. Calculate subtotal from order items
     order_items = db.query(models.OrderItem).filter(models.OrderItem.order_id == order.order_id).all()
     subtotal = sum(item.total_price for item in order_items) if order_items else Decimal(0)
-    tax_amount = subtotal * Decimal('0.05')  # Hardcoded 5% tax based on flutter app
+    tax_amount = subtotal * TAX_RATE
     
     total = subtotal + tax_amount + Decimal(str(request.tip_amount))
     
-    b_id = branch_id if locals().get('branch_id') else (user_branch_id or 1)
-    
-    # 3. Create Bill
+    # 3. Create Bill (L-06: use 12-char hex for collision resistance)
     bill = models.Bill(
-        bill_id=f"BILL-{uuid4().hex[:6].upper()}",
+        bill_id=f"BILL-{uuid4().hex[:12].upper()}",
         order_id=order.order_id,
         table_id=order.table_id,
         subtotal=subtotal,
@@ -252,7 +224,7 @@ def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_
         upi_amount=Decimal(str(request.upi_amount)),
         card_amount=Decimal(str(request.card_amount)),
         payment_status="completed",
-        billed_by=current_user.get("user_id", 1),
+        billed_by=current_user["user_id"],
         branch_id=b_id,
         bill_date=datetime.now().date(),
         bill_time=datetime.now().time(),
@@ -270,18 +242,19 @@ def checkout(table_id: str, request: CheckoutRequest, db: Session = Depends(get_
         if table:
             table.status = "available"
             
-    # 6. Deduct Inventory Stock
+    # 6. Deduct Inventory Stock (H-01: with row locking + floor check; L-02: no float roundtrip)
     for item in order_items:
-        # Find recipe for this menu item
         recipes = db.query(models.RecipeIngredient).filter(models.RecipeIngredient.menu_item_id == item.menu_item_id).all()
         for recipe in recipes:
-            stock = db.query(models.InventoryStock).filter(models.InventoryStock.grocery_item_id == recipe.grocery_item_id).first()
+            stock = db.query(models.InventoryStock).filter(
+                models.InventoryStock.grocery_item_id == recipe.grocery_item_id
+            ).with_for_update().first()
             if stock:
-                # Deduct quantity required per item * number of items ordered
-                # Both values must be Decimal since current_stock is Numeric
-                total_required = Decimal(str(float(recipe.quantity_required))) * Decimal(str(int(item.quantity)))
-                stock.current_stock = stock.current_stock - total_required
+                total_required = recipe.quantity_required * item.quantity
+                if stock.current_stock >= total_required:
+                    stock.current_stock -= total_required
+                else:
+                    stock.current_stock = Decimal(0)  # Floor at zero instead of going negative
             
     db.commit()
     return {"status": "success", "bill_id": bill.bill_id}
-

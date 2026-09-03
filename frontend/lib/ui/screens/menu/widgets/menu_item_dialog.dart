@@ -9,6 +9,7 @@ class _ItemEntry {
   final TextEditingController price;
   final TextEditingController category;
   final TextEditingController desc;
+  final TextEditingController imageUrl;
   bool isVeg;
   bool isAvailable;
 
@@ -17,18 +18,21 @@ class _ItemEntry {
     required String initialPrice,
     required String initialCategory,
     required String initialDesc,
+    String? initialImageUrl,
     this.isVeg = true,
     this.isAvailable = true,
   })  : name = TextEditingController(text: initialName),
         price = TextEditingController(text: initialPrice),
         category = TextEditingController(text: initialCategory),
-        desc = TextEditingController(text: initialDesc);
+        desc = TextEditingController(text: initialDesc),
+        imageUrl = TextEditingController(text: initialImageUrl ?? '');
 
   void dispose() {
     name.dispose();
     price.dispose();
     category.dispose();
     desc.dispose();
+    imageUrl.dispose();
   }
 }
 
@@ -55,6 +59,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
         initialPrice: widget.item?['price']?.toString() ?? '',
         initialCategory: widget.item?['category'] ?? '',
         initialDesc: widget.item?['description'] ?? '',
+        initialImageUrl: widget.item?['image_url']?.toString(),
         isVeg: widget.item?['is_vegetarian'] ?? true,
         isAvailable: widget.item?['is_available'] ?? true,
       ));
@@ -70,6 +75,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
         initialPrice: '',
         initialCategory: _entries.isNotEmpty ? _entries.last.category.text : '', // Copy previous category for convenience
         initialDesc: '',
+        initialImageUrl: '',
       ));
     });
   }
@@ -117,7 +123,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
         "price": double.tryParse(priceStr) ?? 0.0,
         "is_vegetarian": entry.isVeg,
         "is_available": entry.isAvailable,
-        "image_url": widget.item?['image_url']
+        "image_url": entry.imageUrl.text.trim().isEmpty ? null : entry.imageUrl.text.trim()
       });
     }
 
@@ -193,6 +199,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
                           const DataColumn(label: Text('Description')),
                           const DataColumn(label: Text('Category *')),
                           const DataColumn(label: Text('Price (₹) *')),
+                          const DataColumn(label: Text('Image URL')),
                           const DataColumn(label: Text('Veg?')),
                           if (!isEdit) const DataColumn(label: Text('')),
                         ],
@@ -259,6 +266,13 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
                                   controller: entry.price,
                                   keyboardType: TextInputType.number,
                                   decoration: const InputDecoration(hintText: '0.00', isDense: true),
+                                ),
+                              )),
+                              DataCell(SizedBox(
+                                width: 200,
+                                child: TextField(
+                                  controller: entry.imageUrl,
+                                  decoration: const InputDecoration(hintText: 'https://...', isDense: true),
                                 ),
                               )),
                               DataCell(Switch(

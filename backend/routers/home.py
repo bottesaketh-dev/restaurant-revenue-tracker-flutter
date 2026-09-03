@@ -53,7 +53,7 @@ def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date
 
     # Outflow: Salaries
     salaries_q = db.query(func.sum(models.SalaryPayment.net_salary)).filter(
-        models.SalaryPayment.payment_status == 'paid',
+        models.SalaryPayment.payment_status.ilike('paid'),
         models.SalaryPayment.payment_date >= start_date,
         models.SalaryPayment.payment_date <= end_date
     )
@@ -138,21 +138,27 @@ def get_dashboard_summary(
     recent_groceries = groceries_q.all()
 
     bills_data = []
-    for b in recent_bills:
-        # Fetch ordered items
+    
+    # Fetch ordered items in a single query to avoid N+1 problem (M-06)
+    order_ids = [b.order_id for b in recent_bills]
+    items_by_order = {}
+    if order_ids:
         bill_items = db.query(models.OrderItem, models.MenuItem).join(
             models.MenuItem, models.OrderItem.menu_item_id == models.MenuItem.menu_item_id
-        ).filter(models.OrderItem.order_id == b.order_id).all()
+        ).filter(models.OrderItem.order_id.in_(order_ids)).all()
         
-        items_list = [
-            {
-                "name": item[1].name,
-                "quantity": item[0].quantity,
-                "price": float(item[0].unit_price),
-                "total": float(item[0].total_price)
-            } for item in bill_items
-        ]
+        for item, menu_item in bill_items:
+            if item.order_id not in items_by_order:
+                items_by_order[item.order_id] = []
+            items_by_order[item.order_id].append({
+                "name": menu_item.name,
+                "quantity": item.quantity,
+                "price": float(item.unit_price),
+                "total": float(item.total_price)
+            })
 
+    for b in recent_bills:
+        items_list = items_by_order.get(b.order_id, [])
         bills_data.append({
             "date": str(b.bill_date),
             "time": str(b.bill_time),

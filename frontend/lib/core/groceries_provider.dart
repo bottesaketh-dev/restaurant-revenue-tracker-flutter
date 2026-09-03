@@ -86,7 +86,8 @@ class GroceriesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynami
 
   Future<void> addGroceryBulk(List<Map<String, dynamic>> items) async {
     try {
-      await _dio.post('/groceries/purchases/bulk', data: items);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.post('/groceries/purchases/bulk', data: items, queryParameters: queryParams);
       _ref.invalidate(inventoryStockProvider);
       fetchGroceries();
     } catch (e) {
@@ -96,7 +97,8 @@ class GroceriesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynami
 
   Future<void> addGrocery(Map<String, dynamic> item) async {
     try {
-      await _dio.post('/groceries/purchases', data: item);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.post('/groceries/purchases', data: item, queryParameters: queryParams);
       _ref.invalidate(inventoryStockProvider);
       fetchGroceries();
     } catch (e) {
@@ -106,7 +108,8 @@ class GroceriesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynami
 
   Future<void> updateGrocery(int purchaseId, Map<String, dynamic> item) async {
     try {
-      await _dio.put('/groceries/purchases/$purchaseId', data: item);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.put('/groceries/purchases/$purchaseId', data: item, queryParameters: queryParams);
       _ref.invalidate(inventoryStockProvider);
       fetchGroceries();
     } catch (e) {
@@ -116,7 +119,8 @@ class GroceriesNotifier extends StateNotifier<AsyncValue<List<Map<String, dynami
 
   Future<void> deleteGrocery(int purchaseId) async {
     try {
-      await _dio.delete('/groceries/purchases/$purchaseId');
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.delete('/groceries/purchases/$purchaseId', queryParameters: queryParams);
       _ref.invalidate(inventoryStockProvider);
       fetchGroceries();
     } catch (e) {

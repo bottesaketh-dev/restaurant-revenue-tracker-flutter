@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/pos_provider.dart';
 import '../../../core/menu_provider.dart';
+import '../../../core/branch_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/responsive.dart';
 import 'widgets/checkout_dialog.dart';
@@ -23,6 +24,8 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
     final mode = ref.watch(posOrderModeProvider);
     final selectedTable = ref.watch(selectedTableProvider);
     final cartItems = ref.watch(posCartProvider);
+    final branchId = ref.watch(selectedBranchProvider);
+    final canCheckout = branchId != null;
 
     final showMenu = mode == OrderMode.takeaway || (mode == OrderMode.dineIn && selectedTable != null);
 
@@ -34,7 +37,7 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(mode, isMobile),
+                _buildHeader(mode, isMobile, canCheckout),
                 const SizedBox(height: 24),
                 Expanded(
                   child: showMenu ? const _MenuOrderingView() : const _TablesGridView(),
@@ -46,7 +49,8 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
                     child: _CartPanel(
                       mode: mode, 
                       selectedTable: selectedTable, 
-                      cartItems: cartItems
+                      cartItems: cartItems,
+                      canCheckout: canCheckout,
                     ),
                   ),
                 ]
@@ -61,7 +65,7 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(mode, isMobile),
+                      _buildHeader(mode, isMobile, canCheckout),
                       const SizedBox(height: 24),
                       Expanded(
                         child: showMenu ? const _MenuOrderingView() : const _TablesGridView(),
@@ -80,7 +84,8 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
                     child: _CartPanel(
                       mode: mode, 
                       selectedTable: selectedTable, 
-                      cartItems: cartItems
+                      cartItems: cartItems,
+                      canCheckout: canCheckout,
                     ),
                   ),
                 ]
@@ -89,7 +94,7 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
     );
   }
 
-  Widget _buildHeader(OrderMode currentMode, bool isMobile) {
+  Widget _buildHeader(OrderMode currentMode, bool isMobile, bool canCheckout) {
     if (isMobile) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,12 +127,12 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: canCheckout ? () {
                     showDialog(
                       context: context,
                       builder: (context) => const ManageTablesDialog(),
                     );
-                  },
+                  } : null,
                   icon: const Icon(Icons.table_restaurant),
                   label: const Text('Manage Tables'),
                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
@@ -169,12 +174,12 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
             ),
             const SizedBox(width: 16),
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: canCheckout ? () {
                 showDialog(
                   context: context,
                   builder: (context) => const ManageTablesDialog(),
                 );
-              },
+              } : null,
               icon: const Icon(Icons.table_restaurant),
               label: const Text('Manage Tables'),
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
@@ -385,38 +390,60 @@ class _MenuOrderingView extends ConsumerWidget {
                   return Card(
                     color: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['name'],
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (item['image_url'] != null && item['image_url'].toString().isNotEmpty)
+                          Expanded(
+                            child: Image.network(
+                              item['image_url'],
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.fastfood, color: Colors.grey, size: 48);
+                              },
+                            ),
+                          )
+                        else
+                          const Expanded(
+                            child: Center(
+                              child: Icon(Icons.fastfood, color: Colors.grey, size: 48),
+                            ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                CurrencyFormatter.format(item['price']),
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  color: AppTheme.primary,
-                                  fontWeight: FontWeight.bold
-                                ),
+                                item['name'],
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.add_circle, color: AppTheme.primary),
-                                onPressed: () {
-                                  ref.read(posCartProvider.notifier).addItem(item);
-                                },
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    CurrencyFormatter.format(item['price']),
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.bold
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      ref.read(posCartProvider.notifier).addItem(item);
+                                    },
+                                    child: const Icon(Icons.add_circle, color: AppTheme.primary, size: 28),
+                                  )
+                                ],
                               )
                             ],
-                          )
-                        ],
-                      ),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -455,11 +482,13 @@ class _CartPanel extends ConsumerWidget {
   final OrderMode mode;
   final String? selectedTable;
   final List<CartItemModel> cartItems;
+  final bool canCheckout;
 
   const _CartPanel({
     required this.mode,
     required this.selectedTable,
     required this.cartItems,
+    required this.canCheckout,
   });
 
   @override
@@ -525,7 +554,7 @@ class _CartPanel extends ConsumerWidget {
                   child: SizedBox(
                     height: 56,
                     child: OutlinedButton(
-                      onPressed: (selectedTable != null || mode == OrderMode.takeaway)
+                      onPressed: canCheckout && (selectedTable != null || mode == OrderMode.takeaway)
                           ? () async {
                               final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
                               try {
@@ -549,7 +578,7 @@ class _CartPanel extends ConsumerWidget {
                   child: SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: cartItems.any((item) => item.isKotPrinted)
+                      onPressed: canCheckout && cartItems.any((item) => item.isKotPrinted)
                           ? () async {
                               final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
                               

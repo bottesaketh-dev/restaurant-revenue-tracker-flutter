@@ -129,6 +129,7 @@ class MenuItemBase(BaseModel):
     price: Decimal
     is_vegetarian: bool = True
     is_available: bool = True
+    image_url: Optional[str] = None
 
 class MenuItemCreate(MenuItemBase):
     pass

@@ -29,7 +29,9 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
   }
 
   Future<void> fetchMenu() async {
-    state = const AsyncValue.loading();
+    if (!state.hasValue) {
+      state = const AsyncValue.loading();
+    }
     try {
       final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
       final response = await _dio.get('/menu/items', queryParameters: queryParams);
@@ -41,7 +43,8 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
 
   Future<void> addMenuBulk(List<Map<String, dynamic>> items) async {
     try {
-      await _dio.post('/menu/bulk', data: items);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.post('/menu/bulk', data: items, queryParameters: queryParams);
       fetchMenu(); // Refresh
     } catch (e) {
       throw Exception('Failed to bulk add: $e');
@@ -50,7 +53,8 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
 
   Future<void> addMenuItem(Map<String, dynamic> item) async {
     try {
-      await _dio.post('/menu/items', data: item);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.post('/menu/items', data: item, queryParameters: queryParams);
       fetchMenu(); // Refresh
     } catch (e) {
       throw Exception('Failed to add item: $e');
@@ -59,7 +63,8 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
 
   Future<void> updateMenuItem(int itemId, Map<String, dynamic> item) async {
     try {
-      await _dio.put('/menu/items/$itemId', data: item);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.put('/menu/items/$itemId', data: item, queryParameters: queryParams);
       fetchMenu(); // Refresh
     } catch (e) {
       throw Exception('Failed to update item: $e');
@@ -68,7 +73,8 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
 
   Future<void> deleteMenuItem(int itemId) async {
     try {
-      await _dio.delete('/menu/items/$itemId');
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.delete('/menu/items/$itemId', queryParameters: queryParams);
       fetchMenu(); // Refresh
     } catch (e) {
       throw Exception('Failed to delete item: $e');

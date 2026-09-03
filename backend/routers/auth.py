@@ -30,12 +30,6 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
         (models.User.email == email_input) | (models.User.username == email_input)
     ).first()
     
-    if not user:
-        print("User not found!")
-    else:
-        if not security.verify_password(request.password, user.password_hash):
-            print("Password verification failed!")
-            
     if not user or not security.verify_password(request.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -54,7 +48,7 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/session")
 def get_session(token_data: dict = Depends(security.get_current_user_token), db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.user_id == int(token_data["sub"])).first()
+    user = db.query(models.User).filter(models.User.user_id == token_data["user_id"]).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return _user_access_payload(user)

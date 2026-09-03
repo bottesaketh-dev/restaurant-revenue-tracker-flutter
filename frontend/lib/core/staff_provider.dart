@@ -34,7 +34,8 @@ class StaffNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>
 
   Future<void> addStaffBulk(List<Map<String, dynamic>> items) async {
     try {
-      await _dio.post('/employees/bulk', data: items);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.post('/employees/bulk', data: items, queryParameters: queryParams);
       fetchStaff();
     } catch (e) {
       throw Exception('Failed to bulk add: $e');
@@ -43,7 +44,8 @@ class StaffNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>
 
   Future<void> updateEmployee(String employeeId, Map<String, dynamic> data) async {
     try {
-      await _dio.put('/employees/$employeeId', data: data);
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.put('/employees/$employeeId', data: data, queryParameters: queryParams);
       fetchStaff();
     } catch (e) {
       throw Exception('Failed to update employee: $e');
@@ -52,7 +54,8 @@ class StaffNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>
 
   Future<void> deleteEmployee(String employeeId) async {
     try {
-      await _dio.delete('/employees/$employeeId');
+      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
+      await _dio.delete('/employees/$employeeId', queryParameters: queryParams);
       fetchStaff();
     } catch (e) {
       throw Exception('Failed to delete employee: $e');
@@ -87,8 +90,10 @@ final salaryPaymentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
 
 Future<void> processSalaryPayment(WidgetRef ref, Map<String, dynamic> data) async {
   final dio = ref.read(dioProvider);
+  final branchId = ref.read(selectedBranchProvider);
   try {
-    await dio.post('/employees/salary', data: data);
+    final queryParams = branchId != null ? {'branch_id': branchId} : null;
+    await dio.post('/employees/salary', data: data, queryParameters: queryParams);
     ref.invalidate(salaryPaymentsProvider);
   } catch (e) {
     throw Exception('Failed to process salary payment: $e');

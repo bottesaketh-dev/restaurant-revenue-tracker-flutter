@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/staff_provider.dart';
+import '../../../core/branch_provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
@@ -386,6 +387,8 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final currentTab = ref.watch(staffTabProvider);
 
     final isMobile = Responsive.isMobile(context);
+    final branchId = ref.watch(selectedBranchProvider);
+    final canAction = branchId != null;
 
     return Padding(
         padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
@@ -408,7 +411,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () => _showBulkOnboardingModal(context),
+                      onPressed: canAction ? () => _showBulkOnboardingModal(context) : null,
                       icon: const Icon(Icons.group_add_outlined),
                       label: isMobile ? const Text('Onboard') : const Text('Onboard new employee(s)'),
                     ),
@@ -474,12 +477,12 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit, color: AppTheme.primary),
-                                    onPressed: () => _showEditEmployeeModal(context, employee),
+                                    icon: Icon(Icons.edit, color: canAction ? AppTheme.primary : Colors.grey),
+                                    onPressed: canAction ? () => _showEditEmployeeModal(context, employee) : null,
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline, color: AppTheme.error),
-                                    onPressed: () async {
+                                    icon: Icon(Icons.delete_outline, color: canAction ? AppTheme.error : Colors.grey),
+                                    onPressed: canAction ? () async {
                                       final confirm = await showDialog<bool>(
                                         context: context,
                                         builder: (ctx) => AlertDialog(
@@ -503,7 +506,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                           if (context.mounted) AppNotifier.showError(context, 'Error: $e');
                                         }
                                       }
-                                    },
+                                    } : null,
                                   )
                                 ],
                               ) : Row(
@@ -512,12 +515,12 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                   Text('${CurrencyFormatter.format(employee['monthly_salary'])}/mo', style: Theme.of(context).textTheme.bodyLarge),
                                   const SizedBox(width: 16),
                                   IconButton(
-                                    icon: const Icon(Icons.edit, color: AppTheme.primary),
-                                    onPressed: () => _showEditEmployeeModal(context, employee),
+                                    icon: Icon(Icons.edit, color: canAction ? AppTheme.primary : Colors.grey),
+                                    onPressed: canAction ? () => _showEditEmployeeModal(context, employee) : null,
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline, color: AppTheme.error),
-                                    onPressed: () async {
+                                    icon: Icon(Icons.delete_outline, color: canAction ? AppTheme.error : Colors.grey),
+                                    onPressed: canAction ? () async {
                                       final confirm = await showDialog<bool>(
                                         context: context,
                                         builder: (ctx) => AlertDialog(
@@ -541,7 +544,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                           if (context.mounted) AppNotifier.showError(context, 'Error: $e');
                                         }
                                       }
-                                    },
+                                    } : null,
                                   )
                                 ],
                               ),
@@ -631,7 +634,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                               )
                                             else
                                               OutlinedButton(
-                                                onPressed: () => _showProcessSalaryModal(context, employee, selectedMonthYear),
+                                                onPressed: canAction ? () => _showProcessSalaryModal(context, employee, selectedMonthYear) : null,
                                                 style: OutlinedButton.styleFrom(
                                                   foregroundColor: AppTheme.primary,
                                                   side: const BorderSide(color: AppTheme.primary),

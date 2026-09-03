@@ -206,7 +206,7 @@ class _ManageTablesDialogState extends ConsumerState<ManageTablesDialog> {
     final tablesAsync = ref.watch(posTablesProvider);
 
     // Initialize existing entries once the data is loaded
-    if (!_dataLoaded && tablesAsync.hasValue) {
+    if (!_dataLoaded && tablesAsync.hasValue && !tablesAsync.isLoading) {
       final tables = tablesAsync.value!;
       for (var t in tables) {
         _existingEntries.add(_TableEntry(
