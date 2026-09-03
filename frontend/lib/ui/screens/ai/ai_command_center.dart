@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/chat_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/responsive.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 class AiCommandCenterScreen extends ConsumerStatefulWidget {
   const AiCommandCenterScreen({super.key});
@@ -59,6 +61,7 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
             'type': 'ai',
             'content': (text == null || text.trim().isEmpty) ? 'The AI finished processing but returned an empty response.' : text,
             'hasChart': data['charts'] != null && (data['charts'] as List).isNotEmpty,
+            'charts': data['charts'] ?? [],
           });
           _isProcessing = false;
         } else if (data['type'] == 'error') {
@@ -130,7 +133,7 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
                         } else if (msg['type'] == 'plan') {
                           return _buildPlanMessage(context, msg['steps'], isMobile);
                         } else {
-                          return _buildAiMessage(context, msg['content'], msg['hasChart'] ?? false, isMobile);
+                          return _buildAiMessage(context, msg['content'], msg['hasChart'] ?? false, msg['charts'] as List<dynamic>? ?? [], isMobile);
                         }
                       },
                     ),
@@ -237,7 +240,7 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
     );
   }
 
-  Widget _buildAiMessage(BuildContext context, String text, bool hasChart, bool isMobile) {
+  Widget _buildAiMessage(BuildContext context, String text, bool hasChart, List<dynamic> charts, bool isMobile) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -259,28 +262,37 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(text, style: const TextStyle(fontSize: 16)),
-            if (hasChart) ...[
+            MarkdownBody(
+              data: text,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet(
+                p: const TextStyle(fontSize: 16),
+              ),
+            ),
+            if (hasChart && charts.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppTheme.background,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE9ECEF)),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.bar_chart, size: 48, color: AppTheme.primary.withValues(alpha: 0.5)),
-                      const SizedBox(height: 8),
-                      const Text('[Vega-Lite Chart Rendered Here]', style: TextStyle(color: Colors.grey)),
-                    ],
+              for (var chart in charts)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.open_in_browser),
+                      label: const Text('View Chart in Browser'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.surfaceDim,
+                        foregroundColor: AppTheme.onBackground,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      onPressed: () {
+                        final chartId = chart['chart_id'];
+                        if (chartId != null) {
+                          launchUrlString('http://127.0.0.1:8000/api/v1/chat/chart/$chartId');
+                        }
+                      },
+                    ),
                   ),
                 ),
-              ),
             ]
           ],
         ),

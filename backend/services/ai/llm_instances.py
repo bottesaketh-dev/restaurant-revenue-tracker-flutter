@@ -18,100 +18,21 @@ if os.getcwd() not in sys.path:
 from langchain_openai import ChatOpenAI
 
 try:
-    # GitHub Models uses a single endpoint and your GitHub PAT for all models
-    GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', 'dummy-token-to-allow-startup')
-    GITHUB_ENDPOINT = "https://models.inference.ai.azure.com"
+    GROQ_API_KEY = os.environ.get('GROQ_API_KEY', 'dummy-token-to-allow-startup')
+    GROQ_ENDPOINT = "https://api.groq.com/openai/v1"
 
     LLM_INSTANCES = {
-        "GPT_4_1": {
+        "GROQ_GPT_OSS_120B": {
             "MODEL": ChatOpenAI(
-                model="gpt-4.1",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
+                model="openai/gpt-oss-120b",
+                openai_api_key=GROQ_API_KEY,
+                openai_api_base=GROQ_ENDPOINT,
                 temperature=0,
                 max_tokens=None,
                 timeout=None,
                 max_retries=2,
             )
-        },
-        "GPT_4O": {
-            "MODEL": ChatOpenAI(
-                model="gpt-4o",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        },
-        "GPT_4O_MINI": {
-            "MODEL": ChatOpenAI(
-                model="gpt-4o-mini",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        },
-        "LLAMA_3_1_70B": {
-            "MODEL": ChatOpenAI(
-                model="Meta-Llama-3.1-70B-Instruct",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        },
-        "MISTRAL_LARGE": {
-            "MODEL": ChatOpenAI(
-                model="Mistral-large",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        },
-        "MISTRAL_SMALL_3_1": {
-            "MODEL": ChatOpenAI(
-                # GitHub allows either the shortname or publisher/model formatting
-                model="mistralai/Mistral-Small-3.1",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        },
-        "COHERE_COMMAND_R": {
-            "MODEL": ChatOpenAI(
-                model="cohere-command-r",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        },
-        "DEEPSEEK_R1_0528": {
-            "MODEL": ChatOpenAI(
-                model="DeepSeek-R1-0528",
-                openai_api_key=GITHUB_TOKEN,
-                openai_api_base=GITHUB_ENDPOINT,
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        },
+        }
     }
 except Exception as _exp:
     print("Exception occurred while loading LLM instances:")

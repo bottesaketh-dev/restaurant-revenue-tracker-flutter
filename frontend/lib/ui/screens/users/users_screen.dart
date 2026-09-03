@@ -18,6 +18,7 @@ class UsersScreen extends ConsumerWidget {
     final branchesAsync = ref.watch(branchListProvider);
     final isMobile = Responsive.isMobile(context);
     final isAdmin = ref.watch(authStateProvider).isAdmin;
+    final selectedBranch = ref.watch(selectedBranchProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -72,8 +73,11 @@ class UsersScreen extends ConsumerWidget {
                 ),
                 child: usersAsync.when(
                   data: (users) {
+                    if (selectedBranch != null) {
+                      users = users.where((u) => u['branch_id'] == selectedBranch).toList();
+                    }
                     if (users.isEmpty) {
-                      return const Center(child: Text('No users found.'));
+                      return const Center(child: Text('No users found in the selected branch.'));
                     }
                     final branches = branchesAsync.value ?? [];
                     final branchNameById = {
@@ -355,7 +359,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
     _username = widget.user?['username'] ?? '';
     _email = widget.user?['email'] ?? '';
     _role = widget.user?['role'] ?? 'staff';
-    _branchId = widget.user?['branch_id'];
+    _branchId = widget.user?['branch_id'] ?? ref.read(selectedBranchProvider);
     _isActive = widget.user?['is_active'] ?? true;
   }
 

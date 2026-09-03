@@ -10,10 +10,10 @@ def generate_altair_code(user_query: str, df: pd.DataFrame) -> str:
     if df.empty:
         raise ValueError("Cannot generate chart: DataFrame is empty.")
 
-    if "GPT_4O_MINI" not in LLM_INSTANCES:
-        raise ValueError("GPT_4O_MINI model configuration is missing in LLM_INSTANCES.")
+    if "GROQ_GPT_OSS_120B" not in LLM_INSTANCES:
+        raise ValueError("GROQ_GPT_OSS_120B model configuration is missing in LLM_INSTANCES.")
         
-    llm = LLM_INSTANCES["GPT_4O_MINI"]["MODEL"]
+    llm = LLM_INSTANCES["GROQ_GPT_OSS_120B"]["MODEL"]
 
     prompt = f"""
     You are an expert Altair data visualization developer.
@@ -25,6 +25,7 @@ def generate_altair_code(user_query: str, df: pd.DataFrame) -> str:
     - Assign the final chart to a variable named `chart`.
     - Do NOT import any libraries.
     - Do NOT create a dataframe or hardcode data. 
+    - Do NOT use backslashes (`\\`) for line continuations. Use parentheses `()` for multi-line chaining instead.
     - You MUST use the existing `df` variable directly (e.g., `alt.Chart(df)`).
     - If the data contains dates as strings, use `pd.to_datetime()` on the dataframe column FIRST, or use Altair's temporal type casting (e.g., `x='date:T'`).
     - Only output the raw python code. No markdown formatting.
@@ -59,7 +60,7 @@ def get_generate_chart_tool(agent_instance):
     @tool
     def generate_chart(sql_query: str, user_goal: str) -> str:
         """Generates a visualization chart based on a SQL query and user goal.
-        Use this tool ONLY when the user explicitly asks for a graph, chart, or plot.
+        Use your judgment to decide if a chart is needed. Call this tool whenever a visualization (like a trend line, bar chart comparison, or distribution) would best help the user understand the data.
         First determine the correct SQL query using SQL tools, then pass it here.
         """
         try:
@@ -72,9 +73,13 @@ def get_generate_chart_tool(agent_instance):
             code = generate_altair_code(user_goal, df)
             chart = execute_chart_code(code, df)
             
-            # Store the generated chart in the class instance as a Vega-Lite dict
-            agent_instance.current_charts.append(chart.to_dict())
-            return "Chart generated successfully. Inform the user that the chart has been displayed."
+            # Save the chart as HTML and store it
+            import uuid
+            chart_id = str(uuid.uuid4())
+            agent_instance.chart_htmls[chart_id] = chart.to_html()
+            agent_instance.current_charts.append({"chart_id": chart_id})
+            
+            return "Chart generated successfully. Inform the user that the chart has been displayed, AND provide a detailed written analysis of the trends, outliers, or key takeaways from the data you plotted."
         except Exception as e:
             return f"Failed to generate chart: {str(e)}"
             
