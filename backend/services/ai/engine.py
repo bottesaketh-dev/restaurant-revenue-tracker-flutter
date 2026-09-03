@@ -38,11 +38,12 @@ class RestaurantAgent:
     def __init__(self):
         self.sql_db = SQLDatabase(engine, include_tables=self.SAFE_TABLES)
 
-        if "GPT_4O_MINI" not in LLM_INSTANCES:
-            raise ValueError("GPT_4O_MINI model configuration is missing in LLM_INSTANCES.")
+        if "GROQ_GPT_OSS_120B" not in LLM_INSTANCES:
+            raise ValueError("GROQ_GPT_OSS_120B model configuration is missing in LLM_INSTANCES.")
 
-        self.llm = LLM_INSTANCES["GPT_4O_MINI"]["MODEL"]
+        self.llm = LLM_INSTANCES["GROQ_GPT_OSS_120B"]["MODEL"]
         self.current_charts = []
+        self.chart_htmls = {}
 
         generate_chart = get_generate_chart_tool(self)
 

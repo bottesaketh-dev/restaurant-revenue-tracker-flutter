@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse
 from pydantic import BaseModel
 from typing import Optional
 from services.ai.engine import RestaurantAgent
@@ -29,3 +29,10 @@ def chat_endpoint(req: ChatRequest, current_user: dict = Depends(security.get_cu
         media_type="application/x-ndjson"
     )
 
+@router.get("/chart/{chart_id}")
+def get_chart_html(chart_id: str):
+    agent = get_agent()
+    html = getattr(agent, "chart_htmls", {}).get(chart_id)
+    if not html:
+        return HTMLResponse("<h1>Chart not found or expired</h1>", status_code=404)
+    return HTMLResponse(html)

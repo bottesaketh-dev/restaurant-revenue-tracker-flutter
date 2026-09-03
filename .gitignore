@@ -231,3 +231,7 @@ frontend/windows/
 frontend/.metadata
 frontend/analysis_options.yaml
 frontend/restaurant_flutter.iml
+
+
+# intermediate files
+code_audit_report.md
