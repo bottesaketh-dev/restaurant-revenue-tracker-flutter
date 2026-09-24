@@ -2,6 +2,8 @@
 
 A comprehensive restaurant management system built with a Flutter frontend and FastAPI Python backend. This application handles everything from Point-of-Sale (POS) operations, menu management, grocery/inventory tracking, expense logging, to staff and payroll management, with seamless multi-branch support.
 
+> 📖 **First time setting up?** Follow the [Complete Step-by-Step Setup Guide](SETUP_GUIDE.md) to get running in minutes with no prior experience needed!
+
 ## Architecture & Tech Stack
 
 ### Frontend
