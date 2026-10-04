@@ -44,6 +44,7 @@ class RestaurantAgent:
         self.llm = LLM_INSTANCES["GROQ_GPT_OSS_120B"]["MODEL"]
         self.current_charts = []
         self.chart_htmls = {}
+        self.chat_histories = {}
 
         generate_chart = get_generate_chart_tool(self)
 
@@ -76,13 +77,20 @@ class RestaurantAgent:
             logger.warning("Plan generation failed (%s), using defaults.", exc)
             return ["Analyze request", "Execute database query", "Format results"]
 
-    def stream_process_query(self, user_input: str, branch_id: int = None):
+    def stream_process_query(self, user_input: str, branch_id: int = None, user_id: int = 1):
         if branch_id:
             user_input = f"[Context: The user is currently viewing branch_id={branch_id}. Please filter your SQL queries for this branch unless specified otherwise.] {user_input}"
             
-        logger.info("--- New query: %s", user_input)
+        history = self.chat_histories.setdefault(user_id, [])
+        history_str = "\n".join(history[-6:])
+        
+        full_input = user_input
+        if history_str:
+            full_input = f"Recent Conversation History:\n{history_str}\n\nCurrent User Query: {user_input}"
+            
+        logger.info("--- New query (user %s): %s", user_id, user_input)
 
-        plan = self.generate_plan(user_input)
+        plan = self.generate_plan(full_input)
         yield json.dumps({"type": "plan", "steps": plan}, default=str) + "\n"
 
         q = queue.Queue()
@@ -98,7 +106,7 @@ class RestaurantAgent:
                 self.current_charts = []
                 logger.info("  Agent invoke started ...")
                 response = self.agent.invoke(
-                    {"input": user_input},
+                    {"input": full_input},
                     config={"callbacks": [_Callback()]},
                 )
                 logger.info("  Agent invoke finished.")
@@ -121,6 +129,12 @@ class RestaurantAgent:
                     data_records = raw_df.fillna("").to_dict(orient="records")
 
                 output_text = response.get("output", "")
+                
+                # Save to history
+                history.append(f"User: {user_input}")
+                history.append(f"AI: {output_text}")
+                self.chat_histories[user_id] = history[-10:] # Max 10 messages
+                
                 q.put({
                     "type": "final",
                     "text": output_text,
