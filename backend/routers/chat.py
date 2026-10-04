@@ -23,9 +23,10 @@ def get_agent():
 @router.post("")
 def chat_endpoint(req: ChatRequest, current_user: dict = Depends(security.get_current_user_token)):
     agent = get_agent()
+    user_id = current_user.get("user_id", 1)
     # stream_process_query yields NDJSON strings ending with newline
     return StreamingResponse(
-        agent.stream_process_query(req.message, req.branch_id),
+        agent.stream_process_query(req.message, req.branch_id, user_id),
         media_type="application/x-ndjson"
     )
 
