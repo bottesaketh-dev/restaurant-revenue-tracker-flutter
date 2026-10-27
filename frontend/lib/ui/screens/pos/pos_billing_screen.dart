@@ -118,6 +118,18 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
           Row(
             children: [
               IconButton(
+                icon: const Icon(Icons.print),
+                tooltip: 'Test Printer',
+                onPressed: () async {
+                  try {
+                    await ref.read(posCartProvider.notifier).testThermalPrinter();
+                    if (mounted) AppNotifier.showSuccess(context, 'Test slip printed on Retsol RTP-82!');
+                  } catch (e) {
+                    if (mounted) AppNotifier.showError(context, 'Printer error: $e');
+                  }
+                },
+              ),
+              IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: () {
                   ref.invalidate(posTablesProvider);
@@ -164,6 +176,19 @@ class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
         ),
         Row(
           children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.print),
+              label: const Text('Test Printer'),
+              onPressed: () async {
+                try {
+                  await ref.read(posCartProvider.notifier).testThermalPrinter();
+                  if (mounted) AppNotifier.showSuccess(context, 'Test slip printed on Retsol RTP-82!');
+                } catch (e) {
+                  if (mounted) AppNotifier.showError(context, 'Printer error: $e');
+                }
+              },
+            ),
+            const SizedBox(width: 12),
             OutlinedButton.icon(
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),

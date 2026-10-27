@@ -27,6 +27,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
   
   String _paymentMode = 'CASH';
   bool _isLoading = false;
+  bool _autoPrint = true;
 
   @override
   void initState() {
@@ -67,18 +68,29 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
     setState(() => _isLoading = true);
     
     try {
-      await ref.read(posCartProvider.notifier).checkout(
+      final res = await ref.read(posCartProvider.notifier).checkout(
         tableId: widget.tableId,
         paymentMode: _paymentMode,
         tipAmount: tipAmount,
         cashAmount: _paymentMode == 'MIXED' ? cashAmount : (_paymentMode == 'CASH' ? total : 0.0),
         upiAmount: _paymentMode == 'MIXED' ? upiAmount : (_paymentMode == 'UPI' ? total : 0.0),
         cardAmount: _paymentMode == 'MIXED' ? cardAmount : (_paymentMode == 'CARD' ? total : 0.0),
+        autoPrint: _autoPrint,
       );
       
       if (mounted) {
         Navigator.pop(context, true);
-        AppNotifier.showSuccess(context, 'Payment Successful! Bill Generated.');
+        final printMsg = res['print_status'];
+        if (_autoPrint && printMsg != null) {
+          final str = printMsg.toString().toLowerCase();
+          if (str.contains("fail") || str.contains("error") || str.contains("warning")) {
+            AppNotifier.showWarning(context, 'Payment Successful! Printer note: $printMsg');
+          } else {
+            AppNotifier.showSuccess(context, 'Payment Successful! Receipt Printed on Retsol.');
+          }
+        } else {
+          AppNotifier.showSuccess(context, 'Payment Successful! Bill Generated.');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -220,7 +232,33 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.print, color: AppTheme.primary, size: 22),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Print Bill on Retsol Thermal Printer',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                  ),
+                  Switch(
+                    value: _autoPrint,
+                    activeColor: AppTheme.primary,
+                    onChanged: (val) => setState(() => _autoPrint = val),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 56,
