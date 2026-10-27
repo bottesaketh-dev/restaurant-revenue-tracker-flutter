@@ -179,7 +179,32 @@ def submit_kot(table_id: str, request: KotRequest, branch_id: Optional[int] = No
             table.status = "occupied"
             
     db.commit()
-    return {"status": "success", "order_id": order.order_id}
+    
+    # Auto-print KOT if items were submitted
+    kot_print_status = None
+    if request.items:
+        try:
+            from services.thermal_printer import generate_kot_receipt_bytes, send_raw_to_printer
+            kot_items_data = []
+            for item in request.items:
+                m_item = db.query(models.MenuItem).filter(models.MenuItem.menu_item_id == item.menu_item_id).first()
+                kot_items_data.append({
+                    "name": m_item.name if m_item else f"Item #{item.menu_item_id}",
+                    "quantity": item.quantity,
+                    "notes": item.notes,
+                })
+            kot_bytes = generate_kot_receipt_bytes(
+                table_id=table_id,
+                order_type=request.order_type,
+                time_str=datetime.now().strftime("%I:%M %p"),
+                items=kot_items_data
+            )
+            success, msg = send_raw_to_printer(kot_bytes)
+            kot_print_status = msg if success else f"KOT Print failed: {msg}"
+        except Exception as pe:
+            kot_print_status = f"Printer error: {str(pe)}"
+
+    return {"status": "success", "order_id": order.order_id, "kot_print_status": kot_print_status}
 
 
 class CheckoutRequest(BaseModel):
@@ -188,6 +213,7 @@ class CheckoutRequest(BaseModel):
     cash_amount: float = 0.0
     upi_amount: float = 0.0
     card_amount: float = 0.0
+    auto_print: bool = True
 
 @router.post("/tables/{table_id}/checkout")
 def checkout(table_id: str, request: CheckoutRequest, branch_id: Optional[int] = None, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
@@ -257,4 +283,125 @@ def checkout(table_id: str, request: CheckoutRequest, branch_id: Optional[int] =
                     stock.current_stock = Decimal(0)  # Floor at zero instead of going negative
             
     db.commit()
-    return {"status": "success", "bill_id": bill.bill_id}
+
+    # 7. Auto-print Bill Receipt if requested
+    print_message = None
+    if request.auto_print:
+        try:
+            from services.thermal_printer import generate_bill_receipt_bytes, send_raw_to_printer
+            branch = db.query(models.Branch).filter(models.Branch.branch_id == b_id).first()
+            cashier = db.query(models.User).filter(models.User.user_id == current_user["user_id"]).first()
+
+            items_data = []
+            for oi in order_items:
+                m_item = db.query(models.MenuItem).filter(models.MenuItem.menu_item_id == oi.menu_item_id).first()
+                items_data.append({
+                    "name": m_item.name if m_item else f"Item #{oi.menu_item_id}",
+                    "quantity": oi.quantity,
+                    "price": float(oi.unit_price),
+                    "total_price": float(oi.total_price),
+                })
+
+            receipt_bytes = generate_bill_receipt_bytes(
+                restaurant_name="Flavors Ledger",
+                branch_name=branch.name if branch else "",
+                branch_phone=branch.phone if branch else "",
+                bill_id=bill.bill_id,
+                table_id=table_id,
+                order_type="takeaway" if table_id == "TAKEAWAY" else "dine_in",
+                cashier_name=cashier.username if cashier else "Staff",
+                date_str=str(bill.bill_date),
+                time_str=bill.bill_time.strftime("%I:%M %p") if bill.bill_time else "",
+                items=items_data,
+                subtotal=float(subtotal),
+                tax_amount=float(tax_amount),
+                discount_amount=0.0,
+                tip_amount=float(request.tip_amount),
+                grand_total=float(total),
+                payment_mode=request.payment_mode,
+            )
+            success, msg = send_raw_to_printer(receipt_bytes)
+            print_message = msg if success else f"Print warning: {msg}"
+        except Exception as pe:
+            print_message = f"Printer error: {str(pe)}"
+
+    return {"status": "success", "bill_id": bill.bill_id, "print_status": print_message}
+
+
+@router.post("/bills/{bill_id}/print")
+def print_bill(bill_id: str, db: Session = Depends(get_db), current_user: dict = Depends(security.get_current_user_token)):
+    """Reprint an existing bill receipt on the Retsol thermal printer."""
+    bill = db.query(models.Bill).filter(models.Bill.bill_id == bill_id).first()
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found")
+
+    order = db.query(models.Order).filter(models.Order.order_id == bill.order_id).first()
+    items_data = []
+    if order:
+        order_items = db.query(models.OrderItem).filter(models.OrderItem.order_id == order.order_id).all()
+        for oi in order_items:
+            m_item = db.query(models.MenuItem).filter(models.MenuItem.menu_item_id == oi.menu_item_id).first()
+            items_data.append({
+                "name": m_item.name if m_item else f"Item #{oi.menu_item_id}",
+                "quantity": oi.quantity,
+                "price": float(oi.unit_price),
+                "total_price": float(oi.total_price),
+            })
+
+    branch = db.query(models.Branch).filter(models.Branch.branch_id == bill.branch_id).first()
+    cashier = db.query(models.User).filter(models.User.user_id == bill.billed_by).first()
+
+    from services.thermal_printer import generate_bill_receipt_bytes, send_raw_to_printer
+    receipt_bytes = generate_bill_receipt_bytes(
+        restaurant_name="Flavors Ledger",
+        branch_name=branch.name if branch else "",
+        branch_phone=branch.phone if branch else "",
+        bill_id=bill.bill_id,
+        table_id=bill.table_id,
+        order_type="takeaway" if bill.table_id == "TAKEAWAY" else "dine_in",
+        cashier_name=cashier.username if cashier else "Staff",
+        date_str=str(bill.bill_date or datetime.now().date()),
+        time_str=bill.bill_time.strftime("%I:%M %p") if bill.bill_time else datetime.now().strftime("%I:%M %p"),
+        items=items_data,
+        subtotal=float(bill.subtotal),
+        tax_amount=float(bill.tax_amount),
+        discount_amount=float(bill.discount_amount or 0),
+        tip_amount=float(bill.tip_amount or 0),
+        grand_total=float(bill.total_amount),
+        payment_mode=bill.payment_mode or "CASH",
+    )
+
+    success, msg = send_raw_to_printer(receipt_bytes)
+    return {"status": "success" if success else "error", "message": msg, "printed": success}
+
+
+@router.post("/printer/test")
+def test_printer(current_user: dict = Depends(security.get_current_user_token)):
+    """Send a test slip to the Retsol thermal printer."""
+    from services.thermal_printer import (
+        INIT, ALIGN_CENTER, ALIGN_LEFT, BOLD_ON, BOLD_OFF,
+        DOUBLE_SIZE_ON, NORMAL_SIZE, CUT_PAPER, LINE_FEED,
+        PAPER_WIDTH_CHARS, _format_two_column, send_raw_to_printer
+    )
+
+    buf = bytearray()
+    buf += INIT
+    buf += ALIGN_CENTER + BOLD_ON + DOUBLE_SIZE_ON
+    buf += b"FLAVORS LEDGER\n"
+    buf += NORMAL_SIZE + BOLD_OFF
+    buf += b"Retsol RTP-82 Thermal Printer\n"
+    buf += (b"=" * PAPER_WIDTH_CHARS) + LINE_FEED
+    buf += ALIGN_LEFT
+    buf += _format_two_column("Status:", "CONNECTED & READY").encode("utf-8")
+    buf += _format_two_column("Port:", "USB001 (Retsol_POS_80)").encode("utf-8")
+    buf += _format_two_column("Paper Width:", "80mm (48 Columns)").encode("utf-8")
+    buf += _format_two_column("Test Time:", datetime.now().strftime("%Y-%m-%d %I:%M %p")).encode("utf-8")
+    buf += (b"=" * PAPER_WIDTH_CHARS) + LINE_FEED
+    buf += ALIGN_CENTER
+    buf += b"Printer Ready for Bills & KOTs!\n"
+    buf += LINE_FEED * 4
+    buf += CUT_PAPER
+
+    success, msg = send_raw_to_printer(bytes(buf))
+    return {"status": "success" if success else "error", "message": msg, "printed": success}
+

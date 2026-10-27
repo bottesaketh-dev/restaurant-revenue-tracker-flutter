@@ -24,6 +24,16 @@ class AppNotifier {
     );
   }
 
+  static void showWarning(BuildContext context, String message) {
+    _show(
+      context,
+      message: message,
+      icon: Icons.warning_amber_rounded,
+      iconColor: Colors.orange.shade800,
+      backgroundColor: Colors.orange.shade50,
+    );
+  }
+
   static void _show(
     BuildContext context, {
     required String message,

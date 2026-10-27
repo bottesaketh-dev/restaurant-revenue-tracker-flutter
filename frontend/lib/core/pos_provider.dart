@@ -211,13 +211,14 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
     state = [];
   }
 
-  Future<void> checkout({
+  Future<Map<String, dynamic>> checkout({
     required String tableId,
     required String paymentMode,
     required double tipAmount,
     required double cashAmount,
     required double upiAmount,
     required double cardAmount,
+    bool autoPrint = true,
   }) async {
     try {
       final requestData = {
@@ -226,11 +227,12 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
         "cash_amount": cashAmount,
         "upi_amount": upiAmount,
         "card_amount": cardAmount,
+        "auto_print": autoPrint,
       };
       
       final branchId = _ref.read(selectedBranchProvider);
       final queryParams = branchId != null ? {'branch_id': branchId} : null;
-      await _dio.post('/billing/tables/$tableId/checkout', data: requestData, queryParameters: queryParams);
+      final response = await _dio.post('/billing/tables/$tableId/checkout', data: requestData, queryParameters: queryParams);
       
       // Clear cart locally
       state = [];
@@ -239,8 +241,25 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
       // Refresh inventory stock
       _ref.invalidate(inventoryStockProvider);
       
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception("Checkout failed: $e");
+    }
+  }
+
+  Future<void> reprintBill(String billId) async {
+    try {
+      await _dio.post('/billing/bills/$billId/print');
+    } catch (e) {
+      throw Exception("Print failed: $e");
+    }
+  }
+
+  Future<void> testThermalPrinter() async {
+    try {
+      await _dio.post('/billing/printer/test');
+    } catch (e) {
+      throw Exception("Printer test failed: $e");
     }
   }
 }
