@@ -13,6 +13,8 @@ import 'widgets/expenses_hr_section.dart';
 import 'widgets/operations_section.dart';
 
 import '../../../core/home_provider.dart';
+import '../../../core/branch_provider.dart';
+import '../../../core/restaurant_provider.dart';
 import '../../../core/api_client.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
@@ -149,10 +151,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             PopupMenuButton<String>(
               onSelected: (format) async {
                 final range = ref.read(dateRangeProvider);
+                final restaurantId = ref.read(selectedRestaurantIdProvider);
+                final branchId = ref.read(selectedBranchProvider);
                 final storage = ref.read(secureStorageProvider);
                 final token = await storage.read(key: 'jwt_token');
 
                 String url = 'http://localhost:8000/api/v1/reports/export?format=$format';
+                if (restaurantId != null) {
+                  url += '&restaurant_id=$restaurantId';
+                }
+                if (branchId != null) {
+                  url += '&branch_id=$branchId';
+                }
                 if (range != null) {
                   final start = DateFormat('yyyy-MM-dd').format(range.start);
                   final end = DateFormat('yyyy-MM-dd').format(range.end);

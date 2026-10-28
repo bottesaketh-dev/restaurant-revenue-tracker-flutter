@@ -4,18 +4,63 @@ from typing import Optional, List
 from datetime import date, datetime, time
 from decimal import Decimal
 
-# Branches
-class BranchResponse(BaseModel):
-    branch_id: int
+# --- Restaurants (Tenants) ---
+class RestaurantBase(BaseModel):
     name: str
-    address: str
-    phone: str
+    slug: str
+    contact_email: str
+    contact_phone: Optional[str] = None
+    currency_code: str = "INR"
+    currency_symbol: str = "₹"
+    tax_rate: Decimal = Decimal("0.0500")
+    receipt_header: Optional[str] = None
+    receipt_footer: Optional[str] = None
+    is_active: bool = True
+
+class RestaurantCreate(RestaurantBase):
+    pass
+
+class RestaurantUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    currency_code: Optional[str] = None
+    currency_symbol: Optional[str] = None
+    tax_rate: Optional[Decimal] = None
+    receipt_header: Optional[str] = None
+    receipt_footer: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class RestaurantResponse(RestaurantBase):
+    restaurant_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
-# Auth
+
+# --- Branches ---
+class BranchBase(BaseModel):
+    name: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    is_active: bool = True
+
+class BranchCreate(BranchBase):
+    restaurant_id: Optional[int] = None
+
+class BranchResponse(BranchBase):
+    branch_id: int
+    restaurant_id: Optional[int] = None
+    class Config:
+        from_attributes = True
+
+
+# --- Auth ---
 class LoginRequest(BaseModel):
-    email: str
+    email: Optional[str] = None
+    username: Optional[str] = None
     password: str
 
 class TokenResponse(BaseModel):
@@ -23,13 +68,33 @@ class TokenResponse(BaseModel):
     message: str
     user: dict
 
-# Users
-VALID_TABS = ["home", "users", "pos", "menu", "staff", "groceries", "kitchen", "expenses", "reports", "ai"]
 
-class UserBase(BaseModel):
+# --- Users & Roles ---
+VALID_TABS = ["home", "users", "pos", "menu", "staff", "groceries", "kitchen", "expenses", "reports", "ai", "restaurants", "branches"]
+VALID_ROLES = ["SUPER_ADMIN", "RESTAURANT_ADMIN", "BRANCH_MANAGER", "STAFF", "ADMIN", "MANAGER", "CASHIER"]
+
+class PermissionGrantRequest(BaseModel):
+    user_id: int
+    granted: bool
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
+
+class UserTabAccessResponse(BaseModel):
+    user_id: int
     username: str
     email: str
     role: str
+    restaurant_id: Optional[int] = None
+    restaurant_name: Optional[str] = None
+    branch_id: Optional[int] = None
+    branch_name: Optional[str] = None
+    has_access: bool
+
+class UserBase(BaseModel):
+    username: str
+    email: Optional[str] = None
+    role: str
+    restaurant_id: Optional[int] = None
     branch_id: Optional[int] = None
     is_active: bool = True
     access_level: str = "FULL"
@@ -59,6 +124,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
     role: Optional[str] = None
+    restaurant_id: Optional[int] = None
     branch_id: Optional[int] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
@@ -105,8 +171,8 @@ class AccessUpdate(BaseModel):
 
 class UserResponse(UserBase):
     user_id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     @field_validator("allowed_tabs", mode="before")
     @classmethod
@@ -121,7 +187,8 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
-# Menu
+
+# --- Menu (Branch-Exclusive) ---
 class MenuItemBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -132,16 +199,19 @@ class MenuItemBase(BaseModel):
     image_url: Optional[str] = None
 
 class MenuItemCreate(MenuItemBase):
-    pass
+    branch_id: Optional[int] = None  # Injected from path/query/context if missing
 
 class MenuItemResponse(MenuItemBase):
     menu_item_id: int
+    restaurant_id: Optional[int] = None
+    branch_id: int
     class Config:
         from_attributes = True
 
-# Employee
+
+# --- Employees & Staff ---
 class EmployeeBase(BaseModel):
-    employee_id: str
+    employee_id: Optional[str] = None
     first_name: str
     last_name: str
     email: Optional[str] = None
@@ -153,22 +223,27 @@ class EmployeeBase(BaseModel):
 class EmployeeCreate(EmployeeBase):
     join_date: Optional[date] = None
     branch_id: Optional[int] = None
+    restaurant_id: Optional[int] = None
 
 class EmployeeResponse(EmployeeBase):
     join_date: Optional[date] = None
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
     class Config:
         from_attributes = True
 
-# Expenses
+
+# --- Expenses ---
 class ExpenseCategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
 
 class ExpenseCategoryCreate(ExpenseCategoryBase):
-    pass
+    restaurant_id: Optional[int] = None
 
 class ExpenseCategoryResponse(ExpenseCategoryBase):
     expense_category_id: int
+    restaurant_id: Optional[int] = None
     class Config:
         from_attributes = True
 
@@ -183,19 +258,23 @@ class ExpenseBase(BaseModel):
     receipt_number: Optional[str] = None
 
 class ExpenseCreate(ExpenseBase):
-    pass
+    branch_id: Optional[int] = None
+    restaurant_id: Optional[int] = None
 
 class ExpenseResponse(ExpenseBase):
     expense_id: int
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
     class Config:
         from_attributes = True
 
-from datetime import datetime, time
 
-# POS Billing
+# --- POS Billing & Tables ---
 class TableCreate(BaseModel):
     table_id: str
     capacity: int
+    branch_id: Optional[int] = None
+    status: Optional[str] = "available"
 
 class TableUpdate(BaseModel):
     table_id: Optional[str] = None
@@ -208,6 +287,8 @@ class TableResponse(BaseModel):
     capacity: int
     status: str
     is_active: bool
+    branch_id: Optional[int] = None
+    restaurant_id: Optional[int] = None
     class Config:
         from_attributes = True
 
@@ -230,6 +311,8 @@ class OrderResponse(BaseModel):
     order_id: str
     table_id: str
     status: str
+    branch_id: Optional[int] = None
+    restaurant_id: Optional[int] = None
     items: List[OrderItemResponse] = []
     class Config:
         from_attributes = True
@@ -251,57 +334,77 @@ class BillResponse(BaseModel):
     payment_mode: str
     payment_status: str
     bill_date: date
+    branch_id: Optional[int] = None
+    restaurant_id: Optional[int] = None
     class Config:
         from_attributes = True
 
-# Groceries
+
+# --- Groceries ---
 class GroceryCategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
 
 class GroceryCategoryCreate(GroceryCategoryBase):
-    pass
+    restaurant_id: Optional[int] = None
 
 class GroceryCategoryResponse(GroceryCategoryBase):
     grocery_category_id: int
+    restaurant_id: Optional[int] = None
     class Config:
         from_attributes = True
 
 class GroceryItemBase(BaseModel):
     product_name: str
-    category_id: int
+    category_id: Optional[int] = None
+    grocery_category_id: Optional[int] = None
     unit: str
 
-class GroceryItemCreate(GroceryItemBase):
-    pass
+    @property
+    def effective_category_id(self) -> Optional[int]:
+        return self.category_id or self.grocery_category_id
 
-class GroceryItemResponse(GroceryItemBase):
+class GroceryItemCreate(GroceryItemBase):
+    restaurant_id: Optional[int] = None
+
+class GroceryItemResponse(BaseModel):
     grocery_item_id: str
+    product_name: str
+    category_id: Optional[int] = None
+    unit: str
+    restaurant_id: Optional[int] = None
     class Config:
         from_attributes = True
 
 class GroceryPurchaseCreate(BaseModel):
-    purchase_date: date
+    purchase_date: Optional[date] = None
     grocery_item_id: str
     quantity: Decimal
     unit_price: Decimal
+    total_price: Optional[Decimal] = None
+    payment_mode: Optional[str] = "CASH"
     vendor_name: Optional[str] = None
     notes: Optional[str] = None
+    branch_id: Optional[int] = None
 
 class GroceryPurchaseResponse(GroceryPurchaseCreate):
     grocery_purchase_id: int
     total_price: Decimal
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
     class Config:
         from_attributes = True
 
-# Payroll
+
+# --- Payroll ---
 class SalaryPaymentCreate(BaseModel):
     employee_id: str
     payment_month: int
     payment_year: int
     bonus: Decimal = Decimal('0')
     deductions: Decimal = Decimal('0')
-    payment_mode: str
+    payment_mode: Optional[str] = "BANK_TRANSFER"
+    branch_id: Optional[int] = None
 
 class SalaryPaymentResponse(BaseModel):
     salary_payment_id: int
@@ -315,19 +418,25 @@ class SalaryPaymentResponse(BaseModel):
     payment_date: Optional[date]
     payment_status: str
     payment_mode: Optional[str]
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
     class Config:
         from_attributes = True
 
-# Inventory
+
+# --- Inventory ---
 class InventoryStockResponse(BaseModel):
     inventory_id: int
     grocery_item_id: str
     current_stock: Decimal
     last_updated: datetime
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
     class Config:
         from_attributes = True
 
-# Recipes
+
+# --- Recipes ---
 class RecipeIngredientBase(BaseModel):
     grocery_item_id: str
     quantity_required: Decimal
@@ -341,3 +450,41 @@ class RecipeIngredientResponse(RecipeIngredientBase):
     created_at: datetime
     class Config:
         from_attributes = True
+
+
+# --- Support Tickets ---
+class SupportTicketCreate(BaseModel):
+    category: str
+    priority: str = "MEDIUM"
+    subject: str
+    description: str
+    contact_phone: Optional[str] = None
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
+    metadata_json: Optional[str] = None
+
+class SupportTicketUpdateStatus(BaseModel):
+    status: str
+    resolution_notes: Optional[str] = None
+
+class SupportTicketResponse(BaseModel):
+    ticket_id: int
+    ticket_number: str
+    restaurant_id: Optional[int] = None
+    branch_id: Optional[int] = None
+    user_id: Optional[int] = None
+    user_name: Optional[str] = None
+    category: str
+    priority: str
+    subject: str
+    description: str
+    contact_phone: Optional[str] = None
+    status: str
+    resolution_notes: Optional[str] = None
+    metadata_json: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+

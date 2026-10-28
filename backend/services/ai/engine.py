@@ -35,13 +35,20 @@ class RestaurantAgent:
         "restaurant_tables",
     ]
 
-    def __init__(self):
+    def __init__(self, model_key: str = None):
         self.sql_db = SQLDatabase(engine, include_tables=self.SAFE_TABLES)
 
-        if "GROQ_GPT_OSS_120B" not in LLM_INSTANCES:
-            raise ValueError("GROQ_GPT_OSS_120B model configuration is missing in LLM_INSTANCES.")
+        selected_key = model_key or os.environ.get("AI_MODEL", "GROQ_GPT_OSS_120B")
+        if selected_key not in LLM_INSTANCES:
+            if "GROQ_GPT_OSS_120B" in LLM_INSTANCES:
+                selected_key = "GROQ_GPT_OSS_120B"
+            elif LLM_INSTANCES:
+                selected_key = next(iter(LLM_INSTANCES.keys()))
+            else:
+                raise ValueError("No model configuration found in LLM_INSTANCES.")
 
-        self.llm = LLM_INSTANCES["GROQ_GPT_OSS_120B"]["MODEL"]
+        self.model_key = selected_key
+        self.llm = LLM_INSTANCES[selected_key]["MODEL"]
         self.current_charts = []
         self.chart_htmls = {}
         self.chat_histories = {}
@@ -57,7 +64,7 @@ class RestaurantAgent:
             extra_tools=[generate_chart],
             agent_executor_kwargs={"return_intermediate_steps": True},
         )
-        logger.info("Agent initialised successfully.")
+        logger.info("Agent initialised successfully using model: %s", selected_key)
 
     def generate_plan(self, user_input: str) -> list:
         prompt = (
@@ -77,9 +84,15 @@ class RestaurantAgent:
             logger.warning("Plan generation failed (%s), using defaults.", exc)
             return ["Analyze request", "Execute database query", "Format results"]
 
-    def stream_process_query(self, user_input: str, branch_id: int = None, user_id: int = 1):
-        if branch_id:
-            user_input = f"[Context: The user is currently viewing branch_id={branch_id}. Please filter your SQL queries for this branch unless specified otherwise.] {user_input}"
+    def stream_process_query(self, user_input: str, branch_id: int = None, user_id: int = 1, restaurant_id: int = None, currency_symbol: str = "₹"):
+        context_notes = []
+        if restaurant_id is not None:
+            context_notes.append(f"User belongs to restaurant_id={restaurant_id} (Currency: {currency_symbol}). You MUST scope all queries with 'WHERE restaurant_id = {restaurant_id}'. Do not leak or aggregate data from other restaurant organizations.")
+        if branch_id is not None:
+            context_notes.append(f"User is currently viewing branch_id={branch_id}. Filter your SQL queries for this branch unless instructed otherwise.")
+
+        if context_notes:
+            user_input = f"[Multi-Tenant Scope: {' | '.join(context_notes)}] {user_input}"
             
         history = self.chat_histories.setdefault(user_id, [])
         history_str = "\n".join(history[-6:])
@@ -159,4 +172,4 @@ class RestaurantAgent:
             if item["type"] in ("final", "error"):
                 break
 
-        logger.info("--- Query complete.\\n")
+        logger.info("--- Query complete.\n")

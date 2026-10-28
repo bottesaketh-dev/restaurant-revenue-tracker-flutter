@@ -1,22 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
+import 'restaurant_provider.dart';
 
 final usersProvider = StateNotifierProvider<UsersNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  return UsersNotifier(ref.watch(dioProvider));
+  final restaurantId = ref.watch(selectedRestaurantIdProvider);
+  return UsersNotifier(ref.watch(dioProvider), restaurantId);
 });
 
 class UsersNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final Dio _dio;
+  final int? _restaurantId;
 
-  UsersNotifier(this._dio) : super(const AsyncValue.loading()) {
+  UsersNotifier(this._dio, this._restaurantId) : super(const AsyncValue.loading()) {
     fetchUsers();
   }
 
   Future<void> fetchUsers() async {
     state = const AsyncValue.loading();
     try {
-      final response = await _dio.get('/users/');
+      final queryParams = <String, dynamic>{};
+      if (_restaurantId != null) queryParams['restaurant_id'] = _restaurantId;
+      final response = await _dio.get('/users/', queryParameters: queryParams.isNotEmpty ? queryParams : null);
       final allUsers = List<Map<String, dynamic>>.from(response.data);
       state = AsyncValue.data(allUsers);
     } catch (e, stack) {

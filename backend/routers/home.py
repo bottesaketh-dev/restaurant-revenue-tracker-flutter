@@ -1,23 +1,29 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract
+from sqlalchemy import func
 from database import get_db
 import models, schemas, security
 from datetime import datetime, date, timedelta
 from decimal import Decimal
-import calendar
-
 from typing import Optional
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
-def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date, end_date: date):
+def get_cashflow_summary(
+    db: Session, 
+    restaurant_id: Optional[int], 
+    branch_id: Optional[int], 
+    start_date: date, 
+    end_date: date
+):
     # Inflow
     inflow_q = db.query(func.sum(models.Bill.total_amount)).filter(
         models.Bill.bill_date >= start_date,
         models.Bill.bill_date <= end_date
     )
-    if branch_id:
+    if restaurant_id is not None:
+        inflow_q = inflow_q.filter(models.Bill.restaurant_id == restaurant_id)
+    if branch_id is not None:
         inflow_q = inflow_q.filter(models.Bill.branch_id == branch_id)
     total_inflow = inflow_q.scalar() or Decimal('0.00')
 
@@ -29,7 +35,9 @@ def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date
         models.Bill.bill_date >= start_date,
         models.Bill.bill_date <= end_date
     )
-    if branch_id:
+    if restaurant_id is not None:
+        split_q = split_q.filter(models.Bill.restaurant_id == restaurant_id)
+    if branch_id is not None:
         split_q = split_q.filter(models.Bill.branch_id == branch_id)
     cash_val, upi_val, card_val = split_q.first()
 
@@ -38,7 +46,9 @@ def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date
         models.GroceryPurchase.purchase_date >= start_date,
         models.GroceryPurchase.purchase_date <= end_date
     )
-    if branch_id:
+    if restaurant_id is not None:
+        groceries_q = groceries_q.filter(models.GroceryPurchase.restaurant_id == restaurant_id)
+    if branch_id is not None:
         groceries_q = groceries_q.filter(models.GroceryPurchase.branch_id == branch_id)
     grocery_outflow = groceries_q.scalar() or Decimal('0.00')
 
@@ -47,7 +57,9 @@ def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date
         models.Expense.expense_date >= start_date,
         models.Expense.expense_date <= end_date
     )
-    if branch_id:
+    if restaurant_id is not None:
+        expenses_q = expenses_q.filter(models.Expense.restaurant_id == restaurant_id)
+    if branch_id is not None:
         expenses_q = expenses_q.filter(models.Expense.branch_id == branch_id)
     expense_outflow = expenses_q.scalar() or Decimal('0.00')
 
@@ -57,7 +69,9 @@ def get_cashflow_summary(db: Session, branch_id: Optional[int], start_date: date
         models.SalaryPayment.payment_date >= start_date,
         models.SalaryPayment.payment_date <= end_date
     )
-    if branch_id:
+    if restaurant_id is not None:
+        salaries_q = salaries_q.filter(models.SalaryPayment.restaurant_id == restaurant_id)
+    if branch_id is not None:
         salaries_q = salaries_q.filter(models.SalaryPayment.branch_id == branch_id)
     salary_outflow = salaries_q.scalar() or Decimal('0.00')
 
@@ -83,15 +97,32 @@ def calc_pct(curr, prior):
 @router.get("/summary")
 def get_dashboard_summary(
     branch_id: Optional[int] = None, 
+    restaurant_id: Optional[int] = None,
     tables_start_date: Optional[date] = None,
     tables_end_date: Optional[date] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(security.get_current_user_token)
 ):
+    eff_r_id = security.get_effective_restaurant_id(current_user, restaurant_id)
     user_role = current_user.get("role")
     user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
+
+    # If user is branch-bound or cashier/staff, force branch_id
+    if (user_role or "").upper() not in ("SUPER_ADMIN", "RESTAURANT_ADMIN", "ADMIN") and user_branch_id is not None:
         branch_id = user_branch_id
+
+    # If branch_id provided, verify tenant ownership
+    if branch_id is not None and eff_r_id is not None:
+        branch = db.query(models.Branch).filter(
+            models.Branch.branch_id == branch_id,
+            models.Branch.restaurant_id == eff_r_id
+        ).first()
+        if not branch:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Branch not found in this restaurant organization."
+            )
+
     today = date.today()
     if not tables_start_date:
         tables_start_date = today
@@ -105,26 +136,30 @@ def get_dashboard_summary(
     start_prior = start_curr - timedelta(days=duration)
     end_prior = end_curr - timedelta(days=duration)
 
-    curr_summary = get_cashflow_summary(db, branch_id, start_curr, end_curr)
-    prior_summary = get_cashflow_summary(db, branch_id, start_prior, end_prior)
+    curr_summary = get_cashflow_summary(db, eff_r_id, branch_id, start_curr, end_curr)
+    prior_summary = get_cashflow_summary(db, eff_r_id, branch_id, start_prior, end_prior)
 
-    # Latest 10 bills (filtered by date)
+    # Latest 10 bills (filtered by date and tenant)
     bills_q = db.query(models.Bill).filter(
         models.Bill.bill_date >= tables_start_date,
         models.Bill.bill_date <= tables_end_date
-    ).order_by(models.Bill.created_at.desc())
-    if branch_id:
+    )
+    if eff_r_id is not None:
+        bills_q = bills_q.filter(models.Bill.restaurant_id == eff_r_id)
+    if branch_id is not None:
         bills_q = bills_q.filter(models.Bill.branch_id == branch_id)
-    recent_bills = bills_q.all()
+    recent_bills = bills_q.order_by(models.Bill.created_at.desc()).limit(10).all()
 
     # Latest 10 general expenses
     expenses_q = db.query(models.Expense).filter(
         models.Expense.expense_date >= tables_start_date,
         models.Expense.expense_date <= tables_end_date
-    ).order_by(models.Expense.expense_date.desc())
-    if branch_id:
+    )
+    if eff_r_id is not None:
+        expenses_q = expenses_q.filter(models.Expense.restaurant_id == eff_r_id)
+    if branch_id is not None:
         expenses_q = expenses_q.filter(models.Expense.branch_id == branch_id)
-    recent_expenses = expenses_q.all()
+    recent_expenses = expenses_q.order_by(models.Expense.expense_date.desc()).limit(10).all()
 
     # Latest 10 grocery expenses
     groceries_q = db.query(models.GroceryPurchase, models.GroceryItem).join(
@@ -132,10 +167,12 @@ def get_dashboard_summary(
     ).filter(
         models.GroceryPurchase.purchase_date >= tables_start_date,
         models.GroceryPurchase.purchase_date <= tables_end_date
-    ).order_by(models.GroceryPurchase.created_at.desc())
-    if branch_id:
+    )
+    if eff_r_id is not None:
+        groceries_q = groceries_q.filter(models.GroceryPurchase.restaurant_id == eff_r_id)
+    if branch_id is not None:
         groceries_q = groceries_q.filter(models.GroceryPurchase.branch_id == branch_id)
-    recent_groceries = groceries_q.all()
+    recent_groceries = groceries_q.order_by(models.GroceryPurchase.created_at.desc()).limit(10).all()
 
     bills_data = []
     
@@ -174,7 +211,21 @@ def get_dashboard_summary(
             "items": items_list
         })
 
+    # Currency information
+    currency_symbol = "₹"
+    currency_code = "INR"
+    if eff_r_id is not None:
+        r = db.query(models.Restaurant).filter(models.Restaurant.restaurant_id == eff_r_id).first()
+        if r:
+            if r.currency_symbol:
+                currency_symbol = r.currency_symbol
+            if r.currency_code:
+                currency_code = r.currency_code
+
     return {
+        "restaurant_id": eff_r_id,
+        "currency_symbol": currency_symbol,
+        "currency_code": currency_code,
         "inflow": float(curr_summary["inflow"]),
         "inflow_pct": calc_pct(curr_summary["inflow"], prior_summary["inflow"]),
         "cash_inflow": float(curr_summary["cash_inflow"]),

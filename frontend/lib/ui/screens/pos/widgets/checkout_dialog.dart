@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/pos_provider.dart';
+import '../../../../core/auth_provider.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/currency_formatter.dart';
 import '../../../../core/app_notifier.dart';
@@ -48,7 +49,8 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
   }
 
   double get subtotal => widget.items.fold(0, (sum, item) => sum + (double.tryParse(item.menuItem['price'].toString()) ?? 0.0) * item.quantity);
-  double get taxes => subtotal * 0.05;
+  double get taxRate => ref.watch(authStateProvider).taxRate;
+  double get taxes => subtotal * taxRate;
   double get tipAmount => double.tryParse(_tipController.text) ?? 0.0;
   double get total => subtotal + taxes + tipAmount;
 
@@ -150,14 +152,14 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Taxes (5%)'),
+                        Text('Taxes (${(taxRate * 100).toStringAsFixed(1)}%)'),
                         Text(CurrencyFormatter.format(taxes)),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Text('Tip Amount: ₹'),
+                        Text('Tip Amount: ${CurrencyFormatter.activeSymbol}'),
                         const SizedBox(width: 16),
                         Expanded(
                           child: TextField(
@@ -206,7 +208,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                             child: TextField(
                               controller: _cashController,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Cash ₹', isDense: true),
+                              decoration: InputDecoration(labelText: 'Cash ${CurrencyFormatter.activeSymbol}', isDense: true),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -214,7 +216,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                             child: TextField(
                               controller: _upiController,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'UPI ₹', isDense: true),
+                              decoration: InputDecoration(labelText: 'UPI ${CurrencyFormatter.activeSymbol}', isDense: true),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -222,7 +224,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                             child: TextField(
                               controller: _cardController,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Card ₹', isDense: true),
+                              decoration: InputDecoration(labelText: 'Card ${CurrencyFormatter.activeSymbol}', isDense: true),
                             ),
                           ),
                         ],
@@ -236,9 +238,9 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -252,7 +254,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                   ),
                   Switch(
                     value: _autoPrint,
-                    activeColor: AppTheme.primary,
+                    activeThumbColor: AppTheme.primary,
                     onChanged: (val) => setState(() => _autoPrint = val),
                   ),
                 ],

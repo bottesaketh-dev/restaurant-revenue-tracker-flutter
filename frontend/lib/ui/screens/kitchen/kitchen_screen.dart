@@ -14,56 +14,62 @@ class KitchenScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTab = ref.watch(kitchenTabProvider);
+    final isMobile = Responsive.isMobile(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kitchen Inventory & Recipes'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh'),
-              onPressed: () {
-                ref.invalidate(inventoryStockProvider);
-                ref.invalidate(menuProvider);
-              },
-            ),
+    return Padding(
+      padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              Text(
+                'Kitchen Inventory & Recipes',
+                style: isMobile 
+                    ? Theme.of(context).textTheme.headlineMedium 
+                    : Theme.of(context).textTheme.displayLarge,
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh),
+                label: isMobile ? const Text('') : const Text('Refresh'),
+                onPressed: () {
+                  ref.invalidate(inventoryStockProvider);
+                  ref.invalidate(menuProvider);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildToggleBtn('Recipes', KitchenTab.recipes, currentTab, ref),
+                    _buildToggleBtn('Kitchen Stock', KitchenTab.stock, currentTab, ref),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: currentTab == KitchenTab.recipes ? const _RecipesTab() : const _InventoryTab(),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(70),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16.0, left: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surface,
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildToggleBtn('Recipes', KitchenTab.recipes, currentTab, ref),
-                          _buildToggleBtn('Kitchen Stock', KitchenTab.stock, currentTab, ref),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
-      body: currentTab == KitchenTab.recipes ? const _RecipesTab() : const _InventoryTab(),
     );
   }
 

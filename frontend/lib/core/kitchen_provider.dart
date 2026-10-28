@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
+import 'branch_provider.dart';
+import 'restaurant_provider.dart';
 
 enum KitchenTab { recipes, stock }
 
@@ -10,11 +13,16 @@ final kitchenSelectedCategoryProvider = StateProvider<String?>((ref) => null);
 
 final inventoryStockProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dio = ref.watch(dioProvider);
+  final branchId = ref.watch(selectedBranchProvider);
+  final restaurantId = ref.watch(selectedRestaurantIdProvider);
   try {
-    final response = await dio.get('/kitchen/inventory');
+    final queryParams = <String, dynamic>{};
+    if (branchId != null) queryParams['branch_id'] = branchId;
+    if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+    final response = await dio.get('/kitchen/inventory', queryParameters: queryParams.isNotEmpty ? queryParams : null);
     return List<Map<String, dynamic>>.from(response.data);
   } catch (e) {
-    print('Error fetching inventory: $e');
+    debugPrint('Error fetching inventory: $e');
     return [];
   }
 });
@@ -39,7 +47,7 @@ class RecipeNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>
       await fetchRecipe(menuItemId);
       return true;
     } catch (e) {
-      print('Error updating recipe: $e');
+      debugPrint('Error updating recipe: $e');
       return false;
     }
   }

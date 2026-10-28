@@ -8,6 +8,7 @@ import '../../../core/responsive.dart';
 import 'widgets/checkout_dialog.dart';
 import 'widgets/manage_tables_dialog.dart';
 import '../../../core/currency_formatter.dart';
+import '../../../core/auth_provider.dart';
 import '../../../core/app_notifier.dart';
 
 class PosBillingScreen extends ConsumerStatefulWidget {
@@ -518,11 +519,14 @@ class _CartPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+    final taxRate = authState.taxRate;
     double subtotal = 0;
     for (var item in cartItems) {
       subtotal += double.parse(item.menuItem['price'].toString()) * item.quantity;
     }
-    double taxes = subtotal * 0.05;
+    double taxes = subtotal * taxRate;
+    final taxPercentStr = (taxRate * 100).toStringAsFixed(taxRate * 100 == (taxRate * 100).roundToDouble() ? 0 : 1);
 
     String title = 'Cart';
     if (mode == OrderMode.dineIn) {
@@ -538,7 +542,37 @@ class _CartPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.headlineMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(title, style: Theme.of(context).textTheme.headlineMedium)),
+                if (cartItems.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red),
+                    tooltip: 'Clear Cart',
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Clear Cart?'),
+                          content: const Text('Are you sure you want to remove all items from the current cart?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                              onPressed: () {
+                                ref.read(posCartProvider.notifier).clearCart();
+                                Navigator.pop(ctx);
+                              },
+                              child: const Text('Clear'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
             const Divider(height: 32),
             Expanded(
               child: cartItems.isEmpty
@@ -568,7 +602,7 @@ class _CartPanel extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Taxes (5%)', style: Theme.of(context).textTheme.bodyLarge),
+                Text('Taxes ($taxPercentStr%)', style: Theme.of(context).textTheme.bodyLarge),
                 Text(CurrencyFormatter.format(taxes), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
@@ -579,7 +613,7 @@ class _CartPanel extends ConsumerWidget {
                   child: SizedBox(
                     height: 56,
                     child: OutlinedButton(
-                      onPressed: canCheckout && (selectedTable != null || mode == OrderMode.takeaway)
+                      onPressed: canCheckout && cartItems.isNotEmpty && (selectedTable != null || mode == OrderMode.takeaway)
                           ? () async {
                               final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
                               try {
@@ -603,15 +637,28 @@ class _CartPanel extends ConsumerWidget {
                   child: SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: canCheckout && cartItems.any((item) => item.isKotPrinted)
+                      onPressed: canCheckout && cartItems.isNotEmpty && (selectedTable != null || mode == OrderMode.takeaway)
                           ? () async {
                               final tableId = mode == OrderMode.dineIn ? selectedTable! : "TAKEAWAY";
                               
+                              // Automatically synchronize unprinted items before checkout
+                              final hasUnprinted = cartItems.any((item) => !item.isKotPrinted);
+                              if (hasUnprinted) {
+                                try {
+                                  await ref.read(posCartProvider.notifier).printKot(tableId, mode);
+                                } catch (e) {
+                                  if (context.mounted) AppNotifier.showError(context, 'Failed to save order: $e');
+                                  return;
+                                }
+                              }
+
+                              if (!context.mounted) return;
+                              final currentItems = ref.read(posCartProvider);
                               final result = await showDialog<bool>(
                                 context: context,
                                 builder: (context) => CheckoutDialog(
                                   tableId: tableId,
-                                  items: cartItems.where((item) => item.isKotPrinted).toList(),
+                                  items: currentItems,
                                 )
                               );
                               
@@ -684,6 +731,13 @@ class _CartItemWidget extends ConsumerWidget {
                   ref.read(posCartProvider.notifier).updateQuantity(index, 1);
                 }, 
                 icon: const Icon(Icons.add_circle_outline, size: 20)
+              ),
+              IconButton(
+                tooltip: 'Remove Item',
+                onPressed: () {
+                  ref.read(posCartProvider.notifier).updateQuantity(index, -item.quantity);
+                },
+                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
               ),
             ],
           )

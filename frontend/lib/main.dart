@@ -14,11 +14,15 @@ import 'ui/screens/reports/reports_screen.dart';
 import 'ui/screens/ai/ai_command_center.dart';
 import 'ui/screens/kitchen/kitchen_screen.dart';
 import 'ui/screens/users/users_screen.dart';
+import 'ui/screens/restaurants/restaurants_screen.dart';
+import 'ui/screens/branches/branches_screen.dart';
+import 'ui/screens/settings/settings_screen.dart';
+import 'ui/screens/support/support_screen.dart';
 import 'core/auth_provider.dart';
 import 'core/nav_tabs.dart';
 
 void main() {
-  runApp(const ProviderScope(child: FlavorsLedgerApp()));
+  runApp(const ProviderScope(child: Ior360App()));
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -34,7 +38,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
-      final path = state.uri.toString();
+      final path = state.uri.path;
       final isGoingToLogin = path == '/login';
 
       if (!isLoggedIn && !isGoingToLogin) return '/login';
@@ -61,6 +65,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/home',
             builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/restaurants',
+            builder: (context, state) => const RestaurantsScreen(),
+          ),
+          GoRoute(
+            path: '/branches',
+            builder: (context, state) => const BranchesScreen(),
           ),
           GoRoute(
             path: '/users',
@@ -98,25 +110,34 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/kitchen',
             builder: (context, state) => const KitchenScreen(),
           ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => SettingsScreen(
+              initialTabKey: state.uri.queryParameters['tab'],
+            ),
+          ),
+          GoRoute(
+            path: '/support',
+            builder: (context, state) => const SupportScreen(),
+          ),
         ],
       ),
     ],
   );
 });
 
-class FlavorsLedgerApp extends ConsumerWidget {
-  const FlavorsLedgerApp({super.key});
+class Ior360App extends ConsumerWidget {
+  const Ior360App({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'Flavors Ledger',
+      title: 'IOR 360',
       theme: AppTheme.lightTheme,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
   }
 }
-

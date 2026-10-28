@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'restaurant_provider.dart';
 
 final secureStorageProvider = Provider((ref) => const FlutterSecureStorage());
 
@@ -18,6 +19,13 @@ final dioProvider = Provider<Dio>((ref) {
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
+    
+    // Inject active restaurant ID header if selected
+    final selectedRestaurant = ref.read(selectedRestaurantIdProvider);
+    if (selectedRestaurant != null) {
+      options.headers['X-Restaurant-ID'] = selectedRestaurant.toString();
+    }
+    
     return handler.next(options);
   }, onError: (DioException e, handler) async {
     if (e.response?.statusCode == 401) {

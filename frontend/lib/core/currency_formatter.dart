@@ -1,8 +1,15 @@
-import 'package:intl/intl.dart';
-
 class CurrencyFormatter {
-  static String format(dynamic amount, {int decimalDigits = 2}) {
-    if (amount == null) return '₹0.00';
+  static String activeSymbol = '₹';
+  static String activeCurrencyCode = 'INR';
+
+  static void setCurrency({required String symbol, String code = 'INR'}) {
+    activeSymbol = symbol;
+    activeCurrencyCode = code;
+  }
+
+  static String format(dynamic amount, {String? symbol, int decimalDigits = 2}) {
+    final currSymbol = symbol ?? activeSymbol;
+    if (amount == null) return '$currSymbol 0.00';
     num parsedAmount;
     if (amount is num) {
       parsedAmount = amount;
@@ -10,12 +17,14 @@ class CurrencyFormatter {
       parsedAmount = double.tryParse(amount.toString()) ?? 0.0;
     }
     
-    final formatter = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: '₹',
-      decimalDigits: decimalDigits,
+    // Format with thousands separator
+    final parts = parsedAmount.toStringAsFixed(decimalDigits).split('.');
+    final intPart = parts[0].replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
     );
-    return formatter.format(parsedAmount);
+    final formatted = parts.length > 1 ? '$intPart.${parts[1]}' : intPart;
+    return '$currSymbol $formatted';
   }
 
   static String formatNoSymbol(dynamic amount, {int decimalDigits = 2}) {
@@ -26,12 +35,11 @@ class CurrencyFormatter {
     } else {
       parsedAmount = double.tryParse(amount.toString()) ?? 0.0;
     }
-    
-    final formatter = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: '',
-      decimalDigits: decimalDigits,
+    final parts = parsedAmount.toStringAsFixed(decimalDigits).split('.');
+    final intPart = parts[0].replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
     );
-    return formatter.format(parsedAmount).trim();
+    return parts.length > 1 ? '$intPart.${parts[1]}' : intPart;
   }
 }

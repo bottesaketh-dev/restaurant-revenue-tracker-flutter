@@ -5,6 +5,7 @@ import '../../../core/home_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/currency_formatter.dart';
 import '../../../core/responsive.dart';
+import '../../../core/restaurant_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -36,12 +37,40 @@ class HomeScreen extends ConsumerWidget {
                             ? Theme.of(context).textTheme.headlineMedium 
                             : Theme.of(context).textTheme.displayLarge,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        displayDate,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
+                      const SizedBox(height: 6),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final activeTenant = ref.watch(activeTenantInfoProvider);
+                          return Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              Text(
+                                displayDate,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                                ),
+                                child: Text(
+                                  activeTenant.name,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -279,8 +308,18 @@ class _BillsTableCard extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: bills.length,
+          child: bills.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(
+                      'No bills recorded for today yet.',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: bills.length,
             itemBuilder: (context, index) {
               final b = bills[index];
               return Card(
@@ -472,8 +511,18 @@ class _GenericTableCard extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: rows.length,
+          child: rows.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(
+                      'No entries recorded for today.',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: rows.length,
             itemBuilder: (context, index) {
               final row = rows[index];
               return SingleChildScrollView(
@@ -593,7 +642,11 @@ class _KpiCard extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.trending_up, color: percentageColor, size: 16),
+                Icon(
+                  percentage.startsWith('-') ? Icons.trending_down : Icons.trending_up, 
+                  color: percentageColor, 
+                  size: 16
+                ),
                 const SizedBox(width: 4),
                 Text(
                   percentage,

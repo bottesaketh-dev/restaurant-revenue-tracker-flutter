@@ -19,6 +19,8 @@ class NavTab {
 
 const List<NavTab> kNavTabs = [
   NavTab(key: 'home', label: 'Home', icon: Icons.dashboard_outlined, route: '/home'),
+  NavTab(key: 'restaurants', label: 'Restaurants', icon: Icons.store_mall_directory_outlined, route: '/restaurants'),
+  NavTab(key: 'branches', label: 'Branches', icon: Icons.share_location_outlined, route: '/branches'),
   NavTab(key: 'users', label: 'Users', icon: Icons.group_outlined, route: '/users'),
   NavTab(key: 'pos', label: 'POS Billing', icon: Icons.point_of_sale_outlined, route: '/pos'),
   NavTab(key: 'menu', label: 'Menu Catalog', icon: Icons.restaurant_menu, route: '/menu'),

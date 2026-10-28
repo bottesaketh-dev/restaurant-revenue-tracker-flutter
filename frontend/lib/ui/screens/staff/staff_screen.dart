@@ -16,17 +16,28 @@ class StaffScreen extends ConsumerStatefulWidget {
 }
 
 class _StaffScreenState extends ConsumerState<StaffScreen> {
-  List<Map<String, dynamic>> _bulkData = List.generate(1, (index) => {
-    'employee_id': '',
-    'first_name': '',
-    'last_name': '',
-    'email': '',
-    'position': 'Waiter',
-    'phone': '',
-    'monthly_salary': '0.00',
-    'join_date': '',
-    'branch_id': '1',
-  });
+  late List<Map<String, dynamic>> _bulkData;
+
+  @override
+  void initState() {
+    super.initState();
+    _bulkData = [_createEmptyEmployee()];
+  }
+
+  Map<String, dynamic> _createEmptyEmployee() {
+    final activeBranch = ref.read(selectedBranchProvider);
+    return {
+      'employee_id': '',
+      'first_name': '',
+      'last_name': '',
+      'email': '',
+      'position': 'Waiter',
+      'phone': '',
+      'monthly_salary': '0.00',
+      'join_date': '',
+      'branch_id': activeBranch != null ? activeBranch.toString() : '1',
+    };
+  }
 
   void _showBulkOnboardingModal(BuildContext context) {
     final staffData = ref.read(staffProvider).value ?? [];
@@ -38,17 +49,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     }
 
     setState(() {
-      _bulkData = List.generate(1, (index) => {
-        'employee_id': '',
-        'first_name': '',
-        'last_name': '',
-        'email': '',
-        'position': 'Waiter',
-        'phone': '',
-        'monthly_salary': '0.00',
-        'join_date': '',
-        'branch_id': '1',
-      });
+      _bulkData = [_createEmptyEmployee()];
     });
     final horizontalScrollController = ScrollController();
     showDialog(
@@ -75,17 +76,17 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                             padding: const EdgeInsets.only(bottom: 16.0),
                             child: DataTable(
                               columnSpacing: 16,
-                            columns: const [
-                              DataColumn(label: Text('Emp ID')),
-                              DataColumn(label: Text('First Name')),
-                              DataColumn(label: Text('Last Name')),
-                              DataColumn(label: Text('Email')),
-                              DataColumn(label: Text('Join Date')),
-                              DataColumn(label: Text('Branch ID')),
-                              DataColumn(label: Text('Role')),
-                              DataColumn(label: Text('Phone')),
-                              DataColumn(label: Text('Salary (₹)')),
-                              DataColumn(label: Text('')),
+                            columns: [
+                              const DataColumn(label: Text('Emp ID')),
+                              const DataColumn(label: Text('First Name')),
+                              const DataColumn(label: Text('Last Name')),
+                              const DataColumn(label: Text('Email')),
+                              const DataColumn(label: Text('Join Date')),
+                              const DataColumn(label: Text('Branch ID')),
+                              const DataColumn(label: Text('Role')),
+                              const DataColumn(label: Text('Phone')),
+                              DataColumn(label: Text('Salary (${CurrencyFormatter.activeSymbol})')),
+                              const DataColumn(label: Text('')),
                             ],
                             rows: List.generate(_bulkData.length, (index) => DataRow(
                               cells: [
@@ -172,7 +173,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                               'phone': '',
                               'monthly_salary': '0.00',
                               'join_date': '',
-                              'branch_id': '1',
+                              'branch_id': ref.read(selectedBranchProvider)?.toString() ?? '1',
                             });
                           });
                         },
@@ -186,20 +187,29 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    final activeBranch = ref.read(selectedBranchProvider) ?? 1;
                     final validItems = _bulkData.where((element) => element['first_name'].toString().trim().isNotEmpty && element['employee_id'].toString().trim().isNotEmpty).map((e) {
                       final map = Map<String, dynamic>.from(e);
-                      if (map['branch_id'] != null) {
-                        map['branch_id'] = int.tryParse(map['branch_id'].toString()) ?? 1;
-                      }
+                      map['branch_id'] = int.tryParse(map['branch_id']?.toString() ?? '') ?? activeBranch;
                       if (map['join_date'] == null || map['join_date'].toString().trim().isEmpty) {
                         map.remove('join_date');
                       }
                       return map;
                     }).toList();
-                    if (validItems.isEmpty) return;
-                    ref.read(staffProvider.notifier).addStaffBulk(validItems);
-                    Navigator.pop(context);
+                    if (validItems.isEmpty) {
+                      AppNotifier.showError(context, 'Please enter Employee ID and First Name for onboarding.');
+                      return;
+                    }
+                    try {
+                      await ref.read(staffProvider.notifier).addStaffBulk(validItems);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        AppNotifier.showSuccess(context, '${validItems.length} employee(s) onboarded successfully');
+                      }
+                    } catch (e) {
+                      if (context.mounted) AppNotifier.showError(context, 'Error onboarding staff: $e');
+                    }
                   }, 
                   child: const Text('Save All Employees')
                 ),
@@ -264,7 +274,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   initialValue: formData['monthly_salary'].toString(),
-                  decoration: const InputDecoration(labelText: 'Monthly Salary (₹)'),
+                  decoration: InputDecoration(labelText: 'Monthly Salary (${CurrencyFormatter.activeSymbol})'),
                   keyboardType: TextInputType.number,
                   onChanged: (v) => formData['monthly_salary'] = v,
                 ),
@@ -325,7 +335,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       initialValue: formData['bonus'],
-                      decoration: const InputDecoration(labelText: 'Bonus (₹)'),
+                      decoration: InputDecoration(labelText: 'Bonus (${CurrencyFormatter.activeSymbol})'),
                       keyboardType: TextInputType.number,
                       onChanged: (v) {
                         formData['bonus'] = v;
@@ -335,7 +345,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       initialValue: formData['deductions'],
-                      decoration: const InputDecoration(labelText: 'Deductions (₹)'),
+                      decoration: InputDecoration(labelText: 'Deductions (${CurrencyFormatter.activeSymbol})'),
                       keyboardType: TextInputType.number,
                       onChanged: (v) {
                         formData['deductions'] = v;
@@ -358,6 +368,16 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                 TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
                 ElevatedButton(
                   onPressed: () async {
+                    final bonusNum = double.tryParse(formData['bonus'].toString()) ?? 0;
+                    final deductionsNum = double.tryParse(formData['deductions'].toString()) ?? 0;
+                    if (bonusNum < 0 || deductionsNum < 0) {
+                      AppNotifier.showError(context, 'Bonus and deductions cannot be negative.');
+                      return;
+                    }
+                    if (net < 0) {
+                      AppNotifier.showError(context, 'Net salary cannot be negative.');
+                      return;
+                    }
                     try {
                       await processSalaryPayment(ref, formData);
                       if (context.mounted) {
@@ -428,7 +448,29 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                 )
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            if (!canAction)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  border: Border.all(color: Colors.amber.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Select a specific branch from the top bar to onboard new staff or process payroll.',
+                        style: TextStyle(color: Colors.amber.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [

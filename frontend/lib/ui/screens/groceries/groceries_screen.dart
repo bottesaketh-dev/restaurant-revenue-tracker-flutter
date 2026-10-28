@@ -88,7 +88,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                           Expanded(
                             child: TextFormField(
                               initialValue: formData['total_price'],
-                              decoration: const InputDecoration(labelText: 'Total Price (₹)'),
+                              decoration: InputDecoration(labelText: 'Total Price (${CurrencyFormatter.activeSymbol})'),
                               keyboardType: TextInputType.number,
                               onChanged: (v) => formData['total_price'] = v,
                             ),
@@ -353,7 +353,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                         child: TextFormField(
                                           key: ValueKey('total_$itemId'),
                                           initialValue: inputData[itemId]!['total_price'],
-                                          decoration: const InputDecoration(labelText: 'Total ₹', isDense: true),
+                                          decoration: InputDecoration(labelText: 'Total ${CurrencyFormatter.activeSymbol}', isDense: true),
                                           keyboardType: TextInputType.number,
                                           onChanged: (v) => inputData[itemId]!['total_price'] = v,
                                         ),
@@ -497,7 +497,30 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                       )
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  if (!canAdd)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        border: Border.all(color: Colors.amber.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Select a specific branch from the top bar to log grocery purchases or manage branch inventory.',
+                              style: TextStyle(color: Colors.amber.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
                   // FILTER BAR & KPI
                   Wrap(
                     spacing: 16,
@@ -536,7 +559,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                       
                       // Category Filter
                       DropdownButton<int?>(
-                        value: currentCatFilter,
+                        value: (currentCatFilter != null && categoriesMap.containsKey(currentCatFilter)) ? currentCatFilter : null,
                         hint: const Text('All Categories'),
                         items: [
                           const DropdownMenuItem(value: null, child: Text('All Categories')),
@@ -581,7 +604,30 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                       )
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  if (!canAdd)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        border: Border.all(color: Colors.amber.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Select a specific branch from the top bar to log grocery purchases or manage branch inventory.',
+                              style: TextStyle(color: Colors.amber.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
                   // Table
                   Expanded(
                     child: Card(

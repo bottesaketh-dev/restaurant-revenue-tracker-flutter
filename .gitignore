@@ -235,3 +235,5 @@ frontend/restaurant_flutter.iml
 
 # intermediate files
 code_audit_report.md
+audit_files/
+backend/backups/

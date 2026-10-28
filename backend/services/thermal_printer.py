@@ -54,7 +54,7 @@ def _format_item_row(name: str, qty: int, price: float, total: float, width: int
 def send_raw_to_printer(raw_data: bytes, printer_name: str = DEFAULT_PRINTER_NAME) -> tuple[bool, str]:
     """Send raw bytes directly to a Windows printer queue using winspool.drv."""
     try:
-        winspool = ctypes.WinDLL("winspool.drv")
+        winspool = ctypes.windll.LoadLibrary("winspool.drv")
         h_printer = wintypes.HANDLE()
 
         if not winspool.OpenPrinterW(printer_name, ctypes.byref(h_printer), None):
@@ -62,7 +62,7 @@ def send_raw_to_printer(raw_data: bytes, printer_name: str = DEFAULT_PRINTER_NAM
             return False, f"Failed to open printer '{printer_name}' (Error: {error_code})"
 
         try:
-            doc_info = DOC_INFO_1("Flavors Ledger Thermal Print", None, "RAW")
+            doc_info = DOC_INFO_1("IOR 360 Thermal Print", None, "RAW")
             job_id = winspool.StartDocPrinterW(h_printer, 1, ctypes.byref(doc_info))
             if not job_id:
                 return False, f"StartDocPrinter failed (Error: {ctypes.GetLastError()})"
@@ -70,7 +70,8 @@ def send_raw_to_printer(raw_data: bytes, printer_name: str = DEFAULT_PRINTER_NAM
             try:
                 winspool.StartPagePrinter(h_printer)
                 written = wintypes.DWORD()
-                success = winspool.WritePrinter(h_printer, raw_data, len(raw_data), ctypes.byref(written))
+                data_bytes = bytes(raw_data) if isinstance(raw_data, (bytes, bytearray)) else str(raw_data).encode("utf-8")
+                success = winspool.WritePrinter(h_printer, data_bytes, len(data_bytes), ctypes.byref(written))
                 winspool.EndPagePrinter(h_printer)
                 winspool.EndDocPrinter(h_printer)
 

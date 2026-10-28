@@ -2,28 +2,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 import 'branch_provider.dart';
+import 'restaurant_provider.dart';
+
 enum StaffTab { register, payroll }
 
 final staffTabProvider = StateProvider<StaffTab>((ref) => StaffTab.register);
 
 final staffProvider = StateNotifierProvider<StaffNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
   final branchId = ref.watch(selectedBranchProvider);
-  return StaffNotifier(ref.watch(dioProvider), branchId);
+  final restaurantId = ref.watch(selectedRestaurantIdProvider);
+  return StaffNotifier(ref.watch(dioProvider), branchId, restaurantId);
 });
 
 class StaffNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final Dio _dio;
   final int? _branchId;
+  final int? _restaurantId;
 
-  StaffNotifier(this._dio, this._branchId) : super(const AsyncValue.loading()) {
+  StaffNotifier(this._dio, this._branchId, this._restaurantId) : super(const AsyncValue.loading()) {
     fetchStaff();
+  }
+
+  Map<String, dynamic>? _getQueryParams() {
+    final queryParams = <String, dynamic>{};
+    if (_branchId != null) queryParams['branch_id'] = _branchId;
+    if (_restaurantId != null) queryParams['restaurant_id'] = _restaurantId;
+    return queryParams.isNotEmpty ? queryParams : null;
   }
 
   Future<void> fetchStaff() async {
     state = const AsyncValue.loading();
     try {
-      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
-      final response = await _dio.get('/employees/', queryParameters: queryParams);
+      final response = await _dio.get('/employees/', queryParameters: _getQueryParams());
       final allEmployees = List<Map<String, dynamic>>.from(response.data);
       final activeEmployees = allEmployees.where((e) => e['is_active'] == true).toList();
       state = AsyncValue.data(activeEmployees);
@@ -34,8 +44,7 @@ class StaffNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>
 
   Future<void> addStaffBulk(List<Map<String, dynamic>> items) async {
     try {
-      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
-      await _dio.post('/employees/bulk', data: items, queryParameters: queryParams);
+      await _dio.post('/employees/bulk', data: items, queryParameters: _getQueryParams());
       fetchStaff();
     } catch (e) {
       throw Exception('Failed to bulk add: $e');
@@ -44,8 +53,7 @@ class StaffNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>
 
   Future<void> updateEmployee(String employeeId, Map<String, dynamic> data) async {
     try {
-      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
-      await _dio.put('/employees/$employeeId', data: data, queryParameters: queryParams);
+      await _dio.put('/employees/$employeeId', data: data, queryParameters: _getQueryParams());
       fetchStaff();
     } catch (e) {
       throw Exception('Failed to update employee: $e');
@@ -54,8 +62,7 @@ class StaffNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>
 
   Future<void> deleteEmployee(String employeeId) async {
     try {
-      final queryParams = _branchId != null ? {'branch_id': _branchId} : null;
-      await _dio.delete('/employees/$employeeId', queryParameters: queryParams);
+      await _dio.delete('/employees/$employeeId', queryParameters: _getQueryParams());
       fetchStaff();
     } catch (e) {
       throw Exception('Failed to delete employee: $e');
@@ -72,6 +79,7 @@ final salaryMonthYearProvider = StateProvider<DateTime>((ref) => DateTime.now())
 final salaryPaymentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dio = ref.watch(dioProvider);
   final branchId = ref.watch(selectedBranchProvider);
+  final restaurantId = ref.watch(selectedRestaurantIdProvider);
   final date = ref.watch(salaryMonthYearProvider);
   
   try {
@@ -80,6 +88,7 @@ final salaryPaymentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
       'year': date.year,
     };
     if (branchId != null) queryParams['branch_id'] = branchId;
+    if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
 
     final response = await dio.get('/employees/salary/all', queryParameters: queryParams);
     return List<Map<String, dynamic>>.from(response.data);
