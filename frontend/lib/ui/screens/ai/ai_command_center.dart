@@ -123,20 +123,62 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
               child: Column(
                 children: [
                   Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(24),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = _messages[index];
-                        if (msg['type'] == 'user') {
-                          return _buildUserMessage(context, msg['content'], isMobile);
-                        } else if (msg['type'] == 'plan') {
-                          return _buildPlanMessage(context, msg['steps'], isMobile);
-                        } else {
-                          return _buildAiMessage(context, msg['content'], msg['hasChart'] ?? false, msg['charts'] as List<dynamic>? ?? [], isMobile);
-                        }
-                      },
-                    ),
+                    child: _messages.isEmpty
+                        ? Center(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.secondary.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.auto_awesome, color: AppTheme.secondary, size: 48),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    'IOR 360 AI Restaurant Analyst',
+                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Ask questions in natural language to generate business metrics, SQL insights, and visual charts.',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 28),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
+                                    alignment: WrapAlignment.center,
+                                    children: [
+                                      _buildPromptChip('Show top 5 best-selling dishes'),
+                                      _buildPromptChip('Plot sales vs expenses for last 30 days'),
+                                      _buildPromptChip('What was today\'s total revenue?'),
+                                      _buildPromptChip('Compare branch revenue and margins'),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(24),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final msg = _messages[index];
+                              if (msg['type'] == 'user') {
+                                return _buildUserMessage(context, msg['content'], isMobile);
+                              } else if (msg['type'] == 'plan') {
+                                return _buildPlanMessage(context, msg['steps'], isMobile);
+                              } else {
+                                return _buildAiMessage(context, msg['content'], msg['hasChart'] ?? false, msg['charts'] as List<dynamic>? ?? [], isMobile);
+                              }
+                            },
+                          ),
                   ),
                   const Divider(height: 1),
                   Padding(
@@ -177,6 +219,19 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen> {
           )
         ],
       ),
+    );
+  }
+
+  Widget _buildPromptChip(String prompt) {
+    return ActionChip(
+      avatar: const Icon(Icons.lightbulb_outline, size: 16, color: AppTheme.primary),
+      label: Text(prompt, style: const TextStyle(fontSize: 13)),
+      backgroundColor: AppTheme.surfaceDim,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.grey.shade300)),
+      onPressed: () {
+        _promptController.text = prompt;
+        _submitQuery();
+      },
     );
   }
 

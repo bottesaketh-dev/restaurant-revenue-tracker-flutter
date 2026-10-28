@@ -61,7 +61,7 @@ class AppNotifier {
             Expanded(
               child: Text(
                 message,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppTheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),

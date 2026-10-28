@@ -5,15 +5,21 @@ from openai import OpenAI
 from langchain.tools import tool
 from .llm_instances import LLM_INSTANCES
 
-def generate_altair_code(user_query: str, df: pd.DataFrame) -> str:
-    """Requests GPT-4 to generate Altair charting code."""
+def generate_altair_code(user_query: str, df: pd.DataFrame, model_key: str = None) -> str:
+    """Requests LLM to generate Altair charting code."""
     if df.empty:
         raise ValueError("Cannot generate chart: DataFrame is empty.")
 
-    if "GROQ_GPT_OSS_120B" not in LLM_INSTANCES:
-        raise ValueError("GROQ_GPT_OSS_120B model configuration is missing in LLM_INSTANCES.")
+    selected_key = model_key or os.environ.get("AI_MODEL", "GROQ_GPT_OSS_120B")
+    if selected_key not in LLM_INSTANCES:
+        if "GROQ_GPT_OSS_120B" in LLM_INSTANCES:
+            selected_key = "GROQ_GPT_OSS_120B"
+        elif LLM_INSTANCES:
+            selected_key = next(iter(LLM_INSTANCES.keys()))
+        else:
+            raise ValueError("No model configuration found in LLM_INSTANCES.")
         
-    llm = LLM_INSTANCES["GROQ_GPT_OSS_120B"]["MODEL"]
+    llm = LLM_INSTANCES[selected_key]["MODEL"]
 
     prompt = f"""
     You are an expert Altair data visualization developer.
@@ -70,7 +76,8 @@ def get_generate_chart_tool(agent_instance):
                 return "Error: SQL query returned no data. Cannot generate chart."
             
             # Generate and execute chart code
-            code = generate_altair_code(user_goal, df)
+            model_key = getattr(agent_instance, "model_key", None)
+            code = generate_altair_code(user_goal, df, model_key=model_key)
             chart = execute_chart_code(code, df)
             
             # Save the chart as HTML and store it

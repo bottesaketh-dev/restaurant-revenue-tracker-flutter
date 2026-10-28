@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 import 'branch_provider.dart';
+import 'restaurant_provider.dart';
 import 'menu_provider.dart';
 import 'kitchen_provider.dart';
 
@@ -17,8 +18,11 @@ class PosTablesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
   Future<List<Map<String, dynamic>>> build() async {
     final dio = ref.watch(dioProvider);
     final branchId = ref.watch(selectedBranchProvider);
-    final queryParams = branchId != null ? {'branch_id': branchId} : null;
-    final response = await dio.get('/billing/tables', queryParameters: queryParams);
+    final restaurantId = ref.watch(selectedRestaurantIdProvider);
+    final queryParams = <String, dynamic>{};
+    if (branchId != null) queryParams['branch_id'] = branchId;
+    if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+    final response = await dio.get('/billing/tables', queryParameters: queryParams.isNotEmpty ? queryParams : null);
     
     List<Map<String, dynamic>> tables = List<Map<String, dynamic>>.from(response.data);
     
@@ -57,20 +61,34 @@ class PosTablesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
 
   Future<void> addTablesBulk(List<Map<String, dynamic>> tables) async {
     final dio = ref.read(dioProvider);
-    final branchId = ref.read(selectedBranchProvider) ?? 1;
-    await dio.post('/billing/tables/bulk', data: tables, queryParameters: {'branch_id': branchId});
+    final branchId = ref.read(selectedBranchProvider);
+    final restaurantId = ref.read(selectedRestaurantIdProvider);
+    final queryParams = <String, dynamic>{};
+    if (branchId != null) queryParams['branch_id'] = branchId;
+    if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+    await dio.post('/billing/tables/bulk', data: tables, queryParameters: queryParams.isNotEmpty ? queryParams : null);
     await fetchTables();
   }
 
   Future<void> updateTable(String tableId, Map<String, dynamic> data) async {
     final dio = ref.read(dioProvider);
-    await dio.put('/billing/tables/$tableId', data: data);
+    final branchId = ref.read(selectedBranchProvider);
+    final restaurantId = ref.read(selectedRestaurantIdProvider);
+    final queryParams = <String, dynamic>{};
+    if (branchId != null) queryParams['branch_id'] = branchId;
+    if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+    await dio.put('/billing/tables/$tableId', data: data, queryParameters: queryParams.isNotEmpty ? queryParams : null);
     await fetchTables();
   }
 
   Future<void> deleteTable(String tableId) async {
     final dio = ref.read(dioProvider);
-    await dio.delete('/billing/tables/$tableId');
+    final branchId = ref.read(selectedBranchProvider);
+    final restaurantId = ref.read(selectedRestaurantIdProvider);
+    final queryParams = <String, dynamic>{};
+    if (branchId != null) queryParams['branch_id'] = branchId;
+    if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+    await dio.delete('/billing/tables/$tableId', queryParameters: queryParams.isNotEmpty ? queryParams : null);
     await fetchTables();
   }
 }
@@ -133,10 +151,6 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
     
     if (newQuantity <= 0) {
       updated.removeAt(index);
-      // We also need a way to trigger KOT when an item is removed.
-      // But if the cart has no unprinted items after removal, KOT button won't activate!
-      // The easiest fix is to just let KOT button be active if there's any pending changes.
-      // For now, let's just make the KOT button logic in UI check if we need sync.
     } else {
       updated[index] = updated[index].copyWith(
         quantity: newQuantity, 
@@ -159,8 +173,11 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
 
     try {
       final branchId = _ref.read(selectedBranchProvider);
-      final queryParams = branchId != null ? {'branch_id': branchId} : null;
-      await _dio.post('/billing/tables/$tableId/kot', data: requestData, queryParameters: queryParams);
+      final restaurantId = _ref.read(selectedRestaurantIdProvider);
+      final queryParams = <String, dynamic>{};
+      if (branchId != null) queryParams['branch_id'] = branchId;
+      if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+      await _dio.post('/billing/tables/$tableId/kot', data: requestData, queryParameters: queryParams.isNotEmpty ? queryParams : null);
       
       // Mark as printed
       state = state.map((item) {
@@ -177,7 +194,12 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
   
   Future<void> loadActiveOrder(String tableId) async {
     try {
-      final response = await _dio.get('/billing/tables/$tableId/order');
+      final branchId = _ref.read(selectedBranchProvider);
+      final restaurantId = _ref.read(selectedRestaurantIdProvider);
+      final queryParams = <String, dynamic>{};
+      if (branchId != null) queryParams['branch_id'] = branchId;
+      if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+      final response = await _dio.get('/billing/tables/$tableId/order', queryParameters: queryParams.isNotEmpty ? queryParams : null);
       if (response.data == null || response.data == "") {
         state = [];
         return;
@@ -231,8 +253,11 @@ class CartNotifier extends StateNotifier<List<CartItemModel>> {
       };
       
       final branchId = _ref.read(selectedBranchProvider);
-      final queryParams = branchId != null ? {'branch_id': branchId} : null;
-      final response = await _dio.post('/billing/tables/$tableId/checkout', data: requestData, queryParameters: queryParams);
+      final restaurantId = _ref.read(selectedRestaurantIdProvider);
+      final queryParams = <String, dynamic>{};
+      if (branchId != null) queryParams['branch_id'] = branchId;
+      if (restaurantId != null) queryParams['restaurant_id'] = restaurantId;
+      final response = await _dio.post('/billing/tables/$tableId/checkout', data: requestData, queryParameters: queryParams.isNotEmpty ? queryParams : null);
       
       // Clear cart locally
       state = [];

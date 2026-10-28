@@ -74,7 +74,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                             const DataColumn(label: Text('Date')),
                             const DataColumn(label: Text('Category')),
                             const DataColumn(label: Text('Description')),
-                            const DataColumn(label: Text('Amount (₹)')),
+                            DataColumn(label: Text('Amount (${CurrencyFormatter.activeSymbol})')),
                             const DataColumn(label: Text('Vendor Name')),
                             const DataColumn(label: Text('Receipt #')),
                             if (!isEditing) const DataColumn(label: Text('')), // for delete row button
@@ -206,20 +206,41 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final validItems = formData.where((element) => element['description'].toString().trim().isNotEmpty).toList();
-                    if (validItems.isEmpty) return;
-
-                    if (isEditing) {
-                      ref.read(expensesProvider.notifier).updateExpense(expenseToEdit['expense_id'], validItems.first);
-                    } else {
-                      if (validItems.length == 1) {
-                        ref.read(expensesProvider.notifier).addExpense(validItems.first);
-                      } else {
-                        ref.read(expensesProvider.notifier).addExpenseBulk(validItems);
+                    if (validItems.isEmpty) {
+                      AppNotifier.showError(context, 'Please enter a description for expenses.');
+                      return;
+                    }
+                    for (var item in validItems) {
+                      final amount = double.tryParse(item['amount'].toString());
+                      if (amount == null || amount <= 0) {
+                        AppNotifier.showError(context, 'Please enter a valid positive amount for all expenses.');
+                        return;
                       }
                     }
-                    Navigator.pop(context);
+
+                    try {
+                      if (isEditing) {
+                        await ref.read(expensesProvider.notifier).updateExpense(expenseToEdit['expense_id'], validItems.first);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          AppNotifier.showSuccess(context, 'Expense updated successfully');
+                        }
+                      } else {
+                        if (validItems.length == 1) {
+                          await ref.read(expensesProvider.notifier).addExpense(validItems.first);
+                        } else {
+                          await ref.read(expensesProvider.notifier).addExpenseBulk(validItems);
+                        }
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          AppNotifier.showSuccess(context, '${validItems.length} expense(s) submitted successfully');
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) AppNotifier.showError(context, 'Error saving expenses: $e');
+                    }
                   }, 
                   child: Text(isEditing ? 'Save Changes' : 'Submit Expenses')
                 ),
@@ -307,7 +328,30 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               )
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          if (!canAdd)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                border: Border.all(color: Colors.amber.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Select a specific branch from the top bar to record or edit branch expenses.',
+                      style: TextStyle(color: Colors.amber.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
 
           // FILTER BAR & KPI
           Wrap(
@@ -346,7 +390,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               
               // Category Filter
               DropdownButton<int?>(
-                value: categoryId,
+                value: (categoryId != null && categoriesMap.containsKey(categoryId)) ? categoryId : null,
                 hint: const Text('All Categories'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All Categories')),

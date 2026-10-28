@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/menu_provider.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/app_notifier.dart';
+import '../../../../core/currency_formatter.dart';
 
 class _ItemEntry {
   final TextEditingController name;
@@ -198,7 +199,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
                           const DataColumn(label: Text('Item Name *')),
                           const DataColumn(label: Text('Description')),
                           const DataColumn(label: Text('Category *')),
-                          const DataColumn(label: Text('Price (₹) *')),
+                          DataColumn(label: Text('Price (${CurrencyFormatter.activeSymbol}) *')),
                           const DataColumn(label: Text('Image URL')),
                           const DataColumn(label: Text('Veg?')),
                           if (!isEdit) const DataColumn(label: Text('')),

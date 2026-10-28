@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/users_provider.dart';
 import '../../../core/branch_provider.dart';
 import '../../../core/auth_provider.dart';
+import '../../../core/restaurant_provider.dart';
 import '../../../core/nav_tabs.dart';
 import '../../../core/app_notifier.dart';
 import '../../../theme/app_theme.dart';
@@ -17,7 +18,8 @@ class UsersScreen extends ConsumerWidget {
     final usersAsync = ref.watch(usersProvider);
     final branchesAsync = ref.watch(branchListProvider);
     final isMobile = Responsive.isMobile(context);
-    final isAdmin = ref.watch(authStateProvider).isAdmin;
+    final authState = ref.watch(authStateProvider);
+    final isAdmin = authState.isAdmin;
     final selectedBranch = ref.watch(selectedBranchProvider);
 
     return Scaffold(
@@ -43,11 +45,16 @@ class UsersScreen extends ConsumerWidget {
                           : Theme.of(context).textTheme.displayLarge,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Manage application access and roles',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final activeTenant = ref.watch(activeTenantInfoProvider);
+                        return Text(
+                          'Manage application access and roles for ${activeTenant.name}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -191,6 +198,8 @@ class _UserRowState extends ConsumerState<_UserRow> {
   }
 
   bool get _isDirty {
+    final targetRole = (widget.user['role'] as String?)?.toUpperCase() ?? '';
+    if (targetRole == 'SUPER_ADMIN') return false;
     final originalLevel = (widget.user['access_level'] as String?) ?? 'FULL';
     final originalTabs = widget.user['allowed_tabs'];
     final originalSet = originalTabs is List ? originalTabs.map((e) => e.toString()).toSet() : <String>{};
@@ -218,6 +227,10 @@ class _UserRowState extends ConsumerState<_UserRow> {
   Widget build(BuildContext context) {
     final user = widget.user;
     final isActive = user['is_active'] ?? true;
+    final targetRole = (user['role'] as String?)?.toUpperCase() ?? '';
+    final isTargetSuperAdmin = targetRole == 'SUPER_ADMIN';
+    final currentAuth = ref.watch(authStateProvider);
+    final isCallerSuperAdmin = currentAuth.isSuperAdmin;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -227,8 +240,11 @@ class _UserRowState extends ConsumerState<_UserRow> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                child: const Icon(Icons.person, color: AppTheme.primary),
+                backgroundColor: isTargetSuperAdmin ? Colors.amber.shade100 : AppTheme.primary.withValues(alpha: 0.1),
+                child: Icon(
+                  isTargetSuperAdmin ? Icons.security : Icons.person,
+                  color: isTargetSuperAdmin ? Colors.amber.shade900 : AppTheme.primary,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -273,61 +289,220 @@ class _UserRowState extends ConsumerState<_UserRow> {
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.only(left: 56),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text('Access:', style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 12),
-                      DropdownButton<String>(
-                        value: _accessLevel,
-                        items: const [
-                          DropdownMenuItem(value: 'FULL', child: Text('Full Access')),
-                          DropdownMenuItem(value: 'PARTIAL', child: Text('Partial Access')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) setState(() => _accessLevel = val);
-                        },
+              child: isTargetSuperAdmin
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade300),
                       ),
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        onPressed: _isDirty ? _saveAccess : null,
-                        icon: const Icon(Icons.save, size: 18),
-                        label: const Text('Save'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.grey.shade300,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_accessLevel == 'PARTIAL') ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 0,
-                      children: [
-                        for (final tab in kNavTabs)
-                          FilterChip(
-                            label: Text(tab.label),
-                            selected: _selectedTabs.contains(tab.key),
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedTabs.add(tab.key);
-                                } else {
-                                  _selectedTabs.remove(tab.key);
-                                }
-                              });
-                            },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.shield, color: Colors.amber.shade900, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Super Admin • Unrestricted Full Platform Access',
+                            style: TextStyle(
+                              color: Colors.amber.shade900,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                           ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            const Text('Tab Access:', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _accessLevel,
+                                  items: const [
+                                    DropdownMenuItem(value: 'FULL', child: Text('Full Access (All Standard Tabs)')),
+                                    DropdownMenuItem(value: 'PARTIAL', child: Text('Partial Access (Custom Tabs)')),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _accessLevel = val;
+                                        if (val == 'PARTIAL' && _selectedTabs.isEmpty) {
+                                          _selectedTabs = kNavTabs
+                                              .where((t) => t.key != 'restaurants' && t.key != 'branches')
+                                              .map((t) => t.key)
+                                              .toSet();
+                                        }
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: _isDirty ? _saveAccess : null,
+                              icon: const Icon(Icons.save, size: 16),
+                              label: const Text('Save Access'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: Colors.grey.shade300,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              ),
+                            ),
+                            if (_isDirty) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.amber.shade300),
+                                ),
+                                child: Text(
+                                  'Unsaved changes',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade900,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (_accessLevel == 'PARTIAL') ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Text(
+                                'Select Accessible Tabs for this user:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    final standardKeys = kNavTabs
+                                        .where((t) => t.key != 'restaurants' && t.key != 'branches')
+                                        .map((t) => t.key);
+                                    _selectedTabs.addAll(standardKeys);
+                                  });
+                                },
+                                child: const Text('Select All Standard', style: TextStyle(fontSize: 11)),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    // If caller is not Super Admin, preserve restaurants if it was granted
+                                    final keepRestaurants = !isCallerSuperAdmin && _selectedTabs.contains('restaurants');
+                                    _selectedTabs.clear();
+                                    if (keepRestaurants) {
+                                      _selectedTabs.add('restaurants');
+                                    }
+                                  });
+                                },
+                                child: const Text('Clear All', style: TextStyle(fontSize: 11, color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final tab in kNavTabs) () {
+                                final isRestaurantsTab = tab.key == 'restaurants';
+                                final isLocked = isRestaurantsTab && !isCallerSuperAdmin;
+                                final isSelected = _selectedTabs.contains(tab.key);
+
+                                Widget chip = FilterChip(
+                                  avatar: Icon(
+                                    tab.icon,
+                                    size: 15,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : (isLocked ? Colors.grey : AppTheme.primary),
+                                  ),
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(tab.label),
+                                      if (isRestaurantsTab) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          isCallerSuperAdmin ? Icons.shield_outlined : Icons.lock,
+                                          size: 13,
+                                          color: isSelected
+                                              ? Colors.white70
+                                              : (isCallerSuperAdmin ? Colors.amber.shade800 : Colors.grey),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  selected: isSelected,
+                                  selectedColor: AppTheme.primary,
+                                  checkmarkColor: Colors.white,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : (isLocked ? Colors.grey.shade600 : Colors.black87),
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                  onSelected: isLocked
+                                      ? null
+                                      : (selected) {
+                                          setState(() {
+                                            if (selected) {
+                                              _selectedTabs.add(tab.key);
+                                            } else {
+                                              _selectedTabs.remove(tab.key);
+                                            }
+                                          });
+                                        },
+                                );
+
+                                if (isLocked) {
+                                  return Tooltip(
+                                    message: 'Only Super Admins can grant or revoke Restaurants tab access.',
+                                    child: chip,
+                                  );
+                                }
+                                return chip;
+                              }(),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
-                  ],
-                ],
-              ),
             ),
           ],
         ],
@@ -367,12 +542,14 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       
+      final activeRestaurantId = ref.read(selectedRestaurantIdProvider);
       final data = {
         'username': _username,
         'email': _email,
         'role': _role,
         'branch_id': _branchId,
         'is_active': _isActive,
+        if (activeRestaurantId != null) 'restaurant_id': activeRestaurantId,
       };
 
       if (_password.isNotEmpty) {
@@ -401,7 +578,16 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
   @override
   Widget build(BuildContext context) {
     final usersList = ref.watch(usersProvider).value ?? [];
-    final Set<String> rolesSet = {};
+    final authState = ref.watch(authStateProvider);
+    final Set<String> rolesSet = {
+      'restaurant_admin',
+      'branch_manager',
+      'cashier',
+      'staff',
+    };
+    if (authState.isSuperAdmin) {
+      rolesSet.add('super_admin');
+    }
     for (final u in usersList) {
       if (u['role'] != null && u['role'].toString().isNotEmpty) {
         rolesSet.add(u['role'].toString().toLowerCase());
@@ -411,6 +597,13 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
     // Ensure current role is always an option
     if (_role.isNotEmpty) {
       rolesSet.add(_role.toLowerCase());
+    }
+
+    String formatRole(String r) {
+      return r
+          .split('_')
+          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+          .join(' ');
     }
 
     return AlertDialog(
@@ -447,7 +640,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
                 items: rolesSet.map((r) {
                   return DropdownMenuItem(
                     value: r,
-                    child: Text(r[0].toUpperCase() + r.substring(1)),
+                    child: Text(formatRole(r)),
                   );
                 }).toList(),
                 onChanged: (val) {
@@ -460,7 +653,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
                   final branchesAsync = ref.watch(branchListProvider);
                   final branches = branchesAsync.value ?? [];
                   return DropdownButtonFormField<int?>(
-                    initialValue: _branchId,
+                    initialValue: (_branchId != null && branches.any((b) => b['branch_id'] == _branchId)) ? _branchId : null,
                     decoration: const InputDecoration(labelText: 'Branch'),
                     items: [
                       const DropdownMenuItem<int?>(

@@ -61,16 +61,19 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: canAdd ? () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => const MenuItemDialog(),
-                      );
-                    } : null,
-                    icon: const Icon(Icons.add),
-                    label: isMobile ? const Text('Add') : const Text('Add Item(s) to Menu'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+                  Tooltip(
+                    message: canAdd ? '' : 'Select a branch from top bar to add items',
+                    child: ElevatedButton.icon(
+                      onPressed: canAdd ? () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => const MenuItemDialog(),
+                        );
+                      } : null,
+                      icon: const Icon(Icons.add),
+                      label: isMobile ? const Text('Add') : const Text('Add Item(s) to Menu'),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
@@ -82,7 +85,30 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
               )
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          if (!canAdd)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                border: Border.all(color: Colors.amber.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Select a specific branch from the top bar to add or edit branch-exclusive menu items.',
+                      style: TextStyle(color: Colors.amber.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
           
           // Filters
           isMobile 

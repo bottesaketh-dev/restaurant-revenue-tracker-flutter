@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_client.dart';
 import 'branch_provider.dart';
+import 'restaurant_provider.dart';
 
 final chatStreamProvider = Provider((ref) => ChatStreamService(ref));
 
@@ -22,15 +24,21 @@ class ChatStreamService {
     final token = await _storage.read(key: 'jwt_token');
 
     final request =
-        http.Request('POST', Uri.parse('${_baseUrl}/chat'));
+        http.Request('POST', Uri.parse('$_baseUrl/chat'));
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
     request.headers['Content-Type'] = 'application/json';
 
+    final restaurantId = _ref.read(selectedRestaurantIdProvider);
+    if (restaurantId != null) {
+      request.headers['X-Restaurant-ID'] = restaurantId.toString();
+    }
+
     final branchId = _ref.read(selectedBranchProvider);
     request.body = jsonEncode({
       'message': message,
+      if (restaurantId != null) 'restaurant_id': restaurantId,
       if (branchId != null) 'branch_id': branchId,
     });
 
@@ -50,8 +58,8 @@ class ChatStreamService {
         final data = jsonDecode(line);
         yield data;
       } catch (e) {
-        print('Error decoding AI stream line: $e');
-        print('Offending line: $line');
+        debugPrint('Error decoding AI stream line: $e');
+        debugPrint('Offending line: $line');
       }
     }
     client.close();

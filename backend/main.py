@@ -7,7 +7,7 @@ from database import engine
 # Create DB tables if they don't exist
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Flavors Ledger API", version="1.0.0")
+app = FastAPI(title="IOR 360 API", version="1.0.0")
 
 # CORS setup — configurable via ALLOWED_ORIGINS env var (comma-separated)
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
@@ -24,6 +24,7 @@ app.add_middleware(
 
 from routers import (
     auth,
+    restaurants,
     menu,
     staff,
     expenses,
@@ -34,10 +35,12 @@ from routers import (
     kitchen,
     home,
     reports,
-    users
+    users,
+    support
 )
 
 app.include_router(auth.router)
+app.include_router(restaurants.router)
 app.include_router(users.router)
 app.include_router(branches.router)
 app.include_router(home.router)
@@ -49,7 +52,19 @@ app.include_router(chat.router)
 app.include_router(groceries.router)
 app.include_router(kitchen.router)
 app.include_router(reports.router)
+app.include_router(support.router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Flavors Ledger API"}
+    return {"message": "Welcome to IOR 360 API"}
+
+@app.get("/health")
+@app.get("/api/v1/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "app": "IOR 360 API",
+        "version": "2.4.0",
+        "database": "SQLite local.db",
+        "mode": "multi-tenant"
+    }

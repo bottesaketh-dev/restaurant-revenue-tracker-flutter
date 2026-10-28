@@ -1,56 +1,89 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
+from uuid import uuid4
 from database import get_db
 import models, schemas, security
 
 router = APIRouter(prefix="/api/v1/employees", tags=["employees"])
 
-def _resolve_branch(current_user: dict, branch_id: Optional[int] = None, require_branch: bool = False) -> Optional[int]:
-    user_role = current_user.get("role")
+def _resolve_branch_and_restaurant(current_user: dict, db: Session, branch_id: Optional[int] = None, require_branch: bool = False):
+    """Cleanly resolve the effective branch_id and restaurant_id from JWT claims, enforcing tenant isolation."""
+    eff_r_id = security.get_effective_restaurant_id(current_user)
+    user_role = (current_user.get("role") or "").upper()
     user_branch_id = current_user.get("branch_id")
-    if user_role != "ADMIN" and user_branch_id is not None:
-        return user_branch_id
-    b_id = branch_id or user_branch_id
+    
+    if user_role not in ("SUPER_ADMIN", "RESTAURANT_ADMIN", "ADMIN") and user_branch_id is not None:
+        if branch_id is not None and branch_id != user_branch_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: Cannot access data from a different branch")
+        b_id = user_branch_id
+    else:
+        b_id = branch_id or user_branch_id
+
     if require_branch and b_id is None:
         raise HTTPException(status_code=400, detail="branch_id is required for this operation")
+
+    if b_id is not None:
+        branch = db.query(models.Branch).filter(models.Branch.branch_id == b_id).first()
+        if not branch:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        if eff_r_id is not None and branch.restaurant_id != eff_r_id:
+            raise HTTPException(status_code=403, detail="Branch does not belong to your restaurant organization")
+        if eff_r_id is None:
+            eff_r_id = branch.restaurant_id
+
+    return b_id, eff_r_id
+
+def _resolve_branch(current_user: dict, db: Session, branch_id: Optional[int] = None, require_branch: bool = False) -> Optional[int]:
+    b_id, _ = _resolve_branch_and_restaurant(current_user, db, branch_id, require_branch)
     return b_id
 
 @router.get("/", response_model=List[schemas.EmployeeResponse])
 def get_employees(
     branch_id: Optional[int] = None,
+    restaurant_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    branch_id = _resolve_branch(token_data, branch_id)
+    eff_r_id = security.get_effective_restaurant_id(token_data, restaurant_id)
+    b_id = _resolve_branch(token_data, db, branch_id)
         
     query = db.query(models.Employee)
-    if branch_id:
-        query = query.filter(models.Employee.branch_id == branch_id)
-    return query.all()
+    if eff_r_id is not None:
+        query = query.filter(models.Employee.restaurant_id == eff_r_id)
+    if b_id:
+        query = query.filter(models.Employee.branch_id == b_id)
+    return query.order_by(models.Employee.employee_id).all()
 
-@router.post("/", response_model=schemas.EmployeeResponse)
+@router.post("/", response_model=schemas.EmployeeResponse, status_code=status.HTTP_201_CREATED)
 def create_employee(
     emp: schemas.EmployeeCreate,
     branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = _resolve_branch(token_data, emp.branch_id or branch_id, require_branch=True)
+    b_id, eff_r_id = _resolve_branch_and_restaurant(token_data, db, emp.branch_id or branch_id, require_branch=True)
     
-    # Check if exists
-    exists = db.query(models.Employee).filter(models.Employee.employee_id == emp.employee_id).first()
+    # Check if exists in this restaurant
+    emp_id = emp.employee_id or f"EMP-{uuid4().hex[:6].upper()}"
+    exists = db.query(models.Employee).filter(
+        models.Employee.employee_id == emp_id,
+        models.Employee.restaurant_id == eff_r_id
+    ).first()
     if exists:
-        raise HTTPException(status_code=400, detail="Employee ID already exists")
+        raise HTTPException(status_code=400, detail="Employee ID already exists in your restaurant organization")
 
-    emp_data = emp.model_dump(exclude_unset=True)
+    emp_data = emp.model_dump(exclude_unset=True, exclude={"restaurant_id", "branch_id"})
+    emp_data['employee_id'] = emp_id
     if 'join_date' not in emp_data or not emp_data['join_date']:
-        from datetime import datetime
         emp_data['join_date'] = datetime.now().date()
-    if 'branch_id' not in emp_data or not emp_data['branch_id']:
-        emp_data['branch_id'] = b_id
 
-    db_emp = models.Employee(**emp_data)
+    db_emp = models.Employee(
+        **emp_data,
+        restaurant_id=eff_r_id,
+        branch_id=b_id
+    )
     db.add(db_emp)
     db.commit()
     db.refresh(db_emp)
@@ -63,24 +96,31 @@ def bulk_create_employees(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    from datetime import datetime
-    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
+    b_id, eff_r_id = _resolve_branch_and_restaurant(token_data, db, branch_id, require_branch=True)
     db_emps = []
     today = datetime.now().date()
+    
     for emp in emps:
-        if not db.query(models.Employee).filter(models.Employee.employee_id == emp.employee_id).first():
-            emp_data = emp.model_dump(exclude_unset=True)
+        exists = db.query(models.Employee).filter(
+            models.Employee.employee_id == emp.employee_id,
+            models.Employee.restaurant_id == eff_r_id
+        ).first()
+        if not exists:
+            emp_data = emp.model_dump(exclude_unset=True, exclude={"restaurant_id", "branch_id"})
             if 'join_date' not in emp_data or not emp_data['join_date']:
                 emp_data['join_date'] = today
-            if 'branch_id' not in emp_data or not emp_data['branch_id']:
-                emp_data['branch_id'] = b_id
-            db_emps.append(models.Employee(**emp_data))
+            db_emps.append(models.Employee(
+                **emp_data,
+                restaurant_id=eff_r_id,
+                branch_id=b_id
+            ))
     
     db.add_all(db_emps)
     db.commit()
     for db_emp in db_emps:
         db.refresh(db_emp)
     return db_emps
+
 @router.put("/{employee_id}", response_model=schemas.EmployeeResponse)
 def update_employee(
     employee_id: str,
@@ -89,15 +129,21 @@ def update_employee(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = _resolve_branch(token_data, emp.branch_id or branch_id, require_branch=True)
-    db_emp = db.query(models.Employee).filter(
-        models.Employee.employee_id == employee_id,
-        models.Employee.branch_id == b_id
-    ).first()
+    eff_r_id = security.get_effective_restaurant_id(token_data)
+    b_id = _resolve_branch(token_data, db, emp.branch_id or branch_id)
+    
+    query = db.query(models.Employee).filter(models.Employee.employee_id == employee_id)
+    if eff_r_id is not None:
+        query = query.filter(models.Employee.restaurant_id == eff_r_id)
+    if b_id:
+        query = query.filter(models.Employee.branch_id == b_id)
+        
+    db_emp = query.first()
     if not db_emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    for key, value in emp.model_dump().items():
+    update_data = emp.model_dump(exclude_unset=True, exclude={"restaurant_id"})
+    for key, value in update_data.items():
         setattr(db_emp, key, value)
     
     db.commit()
@@ -111,11 +157,16 @@ def delete_employee(
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
-    db_emp = db.query(models.Employee).filter(
-        models.Employee.employee_id == employee_id,
-        models.Employee.branch_id == b_id
-    ).first()
+    eff_r_id = security.get_effective_restaurant_id(token_data)
+    b_id = _resolve_branch(token_data, db, branch_id)
+    
+    query = db.query(models.Employee).filter(models.Employee.employee_id == employee_id)
+    if eff_r_id is not None:
+        query = query.filter(models.Employee.restaurant_id == eff_r_id)
+    if b_id:
+        query = query.filter(models.Employee.branch_id == b_id)
+        
+    db_emp = query.first()
     if not db_emp:
         raise HTTPException(status_code=404, detail="Employee not found")
     
@@ -128,33 +179,41 @@ def get_salary_payments(
     month: Optional[int] = None,
     year: Optional[int] = None,
     branch_id: Optional[int] = None,
+    restaurant_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    b_id = _resolve_branch(token_data, branch_id)
-    query = db.query(models.SalaryPayment).filter(models.SalaryPayment.branch_id == b_id)
+    eff_r_id = security.get_effective_restaurant_id(token_data, restaurant_id)
+    b_id = _resolve_branch(token_data, db, branch_id)
+    
+    query = db.query(models.SalaryPayment)
+    if eff_r_id is not None:
+        query = query.filter(models.SalaryPayment.restaurant_id == eff_r_id)
+    if b_id:
+        query = query.filter(models.SalaryPayment.branch_id == b_id)
     if month:
         query = query.filter(models.SalaryPayment.payment_month == month)
     if year:
         query = query.filter(models.SalaryPayment.payment_year == year)
-    return query.all()
+    return query.order_by(models.SalaryPayment.salary_payment_id.desc()).all()
 
-@router.post("/salary", response_model=schemas.SalaryPaymentResponse)
+@router.post("/salary", response_model=schemas.SalaryPaymentResponse, status_code=status.HTTP_201_CREATED)
 def process_salary_payment(
     payment: schemas.SalaryPaymentCreate,
     branch_id: Optional[int] = None,
     db: Session = Depends(get_db),
     token_data: dict = Depends(security.get_current_user_token)
 ):
-    from datetime import datetime
-    b_id = _resolve_branch(token_data, branch_id, require_branch=True)
+    b_id, eff_r_id = _resolve_branch_and_restaurant(token_data, db, payment.branch_id or branch_id, require_branch=True)
     user_id = token_data.get("user_id") or 1
 
-    # Get employee base salary
-    emp = db.query(models.Employee).filter(
+    emp_query = db.query(models.Employee).filter(
         models.Employee.employee_id == payment.employee_id,
         models.Employee.branch_id == b_id
-    ).first()
+    )
+    if eff_r_id is not None:
+        emp_query = emp_query.filter(models.Employee.restaurant_id == eff_r_id)
+    emp = emp_query.first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
@@ -162,16 +221,19 @@ def process_salary_payment(
     net_salary = base_salary + payment.bonus - payment.deductions
 
     # Check if already paid
-    existing = db.query(models.SalaryPayment).filter(
+    existing_query = db.query(models.SalaryPayment).filter(
         models.SalaryPayment.employee_id == payment.employee_id,
         models.SalaryPayment.payment_month == payment.payment_month,
         models.SalaryPayment.payment_year == payment.payment_year
-    ).first()
-
-    if existing:
+    )
+    if eff_r_id is not None:
+        existing_query = existing_query.filter(models.SalaryPayment.restaurant_id == eff_r_id)
+    if existing_query.first():
         raise HTTPException(status_code=400, detail="Salary already processed for this month")
 
     db_payment = models.SalaryPayment(
+        restaurant_id=eff_r_id,
+        branch_id=b_id,
         employee_id=payment.employee_id,
         payment_month=payment.payment_month,
         payment_year=payment.payment_year,
@@ -183,7 +245,6 @@ def process_salary_payment(
         payment_status="Paid",
         payment_mode=payment.payment_mode,
         processed_by=user_id,
-        branch_id=b_id
     )
     db.add(db_payment)
     db.commit()
