@@ -233,7 +233,7 @@ class _RestaurantsScreenState extends ConsumerState<RestaurantsScreen> {
   void _showRestaurantDialog(BuildContext context, Map<String, dynamic>? restaurant) {
     showDialog(
       context: context,
-      builder: (context) => _RestaurantDialog(restaurant: restaurant),
+      builder: (context) => RestaurantDialog(restaurant: restaurant),
     );
   }
 
@@ -407,16 +407,26 @@ class _RestaurantTile extends StatelessWidget {
   }
 }
 
-class _RestaurantDialog extends ConsumerStatefulWidget {
+class RestaurantDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic>? restaurant;
 
-  const _RestaurantDialog({this.restaurant});
+  const RestaurantDialog({super.key, this.restaurant});
 
   @override
-  ConsumerState<_RestaurantDialog> createState() => _RestaurantDialogState();
+  ConsumerState<RestaurantDialog> createState() => _RestaurantDialogState();
 }
 
-class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
+class _RestaurantDialogState extends ConsumerState<RestaurantDialog> {
+  static const List<Map<String, String>> _currencyPresets = [
+    {'code': 'INR', 'symbol': '₹', 'label': 'INR - ₹ (Indian Rupee / Lakhs-Crores)'},
+    {'code': 'USD', 'symbol': r'$', 'label': r'USD - $ (US Dollar)'},
+    {'code': 'EUR', 'symbol': '€', 'label': 'EUR - € (Euro)'},
+    {'code': 'GBP', 'symbol': '£', 'label': 'GBP - £ (British Pound)'},
+    {'code': 'AED', 'symbol': 'AED', 'label': 'AED - د.إ (UAE Dirham)'},
+    {'code': 'SAR', 'symbol': 'SAR', 'label': 'SAR - ﷼ (Saudi Riyal)'},
+    {'code': 'CUSTOM', 'symbol': '', 'label': 'Custom Currency'},
+  ];
+
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _slugController;
@@ -428,6 +438,7 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
   late TextEditingController _receiptHeaderController;
   late TextEditingController _receiptFooterController;
   late bool _isActive;
+  late String _selectedCurrencyPreset;
   bool _isLoading = false;
 
   bool get isEditing => widget.restaurant != null;
@@ -440,14 +451,18 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
     _slugController = TextEditingController(text: r?['slug'] ?? '');
     _emailController = TextEditingController(text: r?['contact_email'] ?? '');
     _phoneController = TextEditingController(text: r?['contact_phone'] ?? '');
-    _currencyCodeController = TextEditingController(text: r?['currency_code'] ?? 'INR');
-    _currencySymbolController = TextEditingController(text: r?['currency_symbol'] ?? '₹');
+    _currencyCodeController = TextEditingController(text: r?['currency_code'] ?? '');
+    _currencySymbolController = TextEditingController(text: r?['currency_symbol'] ?? '');
     _taxRateController = TextEditingController(
-      text: r?['tax_rate'] != null ? r!['tax_rate'].toString() : '0.05',
+      text: r?['tax_rate'] != null ? r!['tax_rate'].toString() : '',
     );
     _receiptHeaderController = TextEditingController(text: r?['receipt_header'] ?? '');
     _receiptFooterController = TextEditingController(text: r?['receipt_footer'] ?? '');
     _isActive = r?['is_active'] ?? true;
+
+    final initialCode = (r?['currency_code'] ?? '').toString().toUpperCase();
+    final matchedPreset = _currencyPresets.any((p) => p['code'] == initialCode && p['code'] != 'CUSTOM');
+    _selectedCurrencyPreset = matchedPreset ? initialCode : 'CUSTOM';
   }
 
   @override
@@ -469,15 +484,18 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
 
     setState(() => _isLoading = true);
 
-    final tax = double.tryParse(_taxRateController.text.trim()) ?? 0.05;
+    final taxInput = _taxRateController.text.trim();
+    final tax = taxInput.isEmpty ? 0.05 : (double.tryParse(taxInput) ?? 0.05);
+    final currCode = _currencyCodeController.text.trim().toUpperCase();
+    final currSymbol = _currencySymbolController.text.trim();
 
     final data = {
       'name': _nameController.text.trim(),
       'slug': _slugController.text.trim().toLowerCase(),
       'contact_email': _emailController.text.trim(),
       'contact_phone': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-      'currency_code': _currencyCodeController.text.trim().toUpperCase(),
-      'currency_symbol': _currencySymbolController.text.trim(),
+      'currency_code': currCode.isEmpty ? 'INR' : currCode,
+      'currency_symbol': currSymbol.isEmpty ? '₹' : currSymbol,
       'tax_rate': tax,
       'receipt_header': _receiptHeaderController.text.trim().isEmpty ? null : _receiptHeaderController.text.trim(),
       'receipt_footer': _receiptFooterController.text.trim().isEmpty ? null : _receiptFooterController.text.trim(),
@@ -545,7 +563,7 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
                       flex: 3,
                       child: TextFormField(
                         controller: _nameController,
-                        decoration: const InputDecoration(labelText: 'Restaurant Name *'),
+                        decoration: const InputDecoration(labelText: 'Restaurant Name *', hintText: 'e.g. Deccan Spice'),
                         validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
                         onChanged: (val) {
                           if (!isEditing && _slugController.text.isEmpty) {
@@ -559,7 +577,7 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
                       flex: 2,
                       child: TextFormField(
                         controller: _slugController,
-                        decoration: const InputDecoration(labelText: 'URL Slug *'),
+                        decoration: const InputDecoration(labelText: 'URL Slug *', hintText: 'e.g. deccan-spice'),
                         validator: (v) => (v == null || v.trim().isEmpty) ? 'Slug is required' : null,
                       ),
                     ),
@@ -573,7 +591,7 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _emailController,
-                        decoration: const InputDecoration(labelText: 'Contact Email *'),
+                        decoration: const InputDecoration(labelText: 'Contact Email *', hintText: 'e.g. contact@restaurant.com'),
                         keyboardType: TextInputType.emailAddress,
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Email is required';
@@ -586,12 +604,41 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _phoneController,
-                        decoration: const InputDecoration(labelText: 'Contact Phone'),
+                        decoration: const InputDecoration(labelText: 'Contact Phone', hintText: 'e.g. +91 9876543210'),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // Currency Preset & Formatting Selector
+                DropdownButtonFormField<String>(
+                  key: ValueKey(_selectedCurrencyPreset),
+                  initialValue: _selectedCurrencyPreset,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Currency Preset & Regional Formatting',
+                    prefixIcon: Icon(Icons.currency_exchange, size: 20),
+                  ),
+                  items: _currencyPresets.map((p) {
+                    return DropdownMenuItem<String>(
+                      value: p['code'],
+                      child: Text(p['label']!),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    setState(() {
+                      _selectedCurrencyPreset = val;
+                      if (val != 'CUSTOM') {
+                        final found = _currencyPresets.firstWhere((p) => p['code'] == val);
+                        _currencyCodeController.text = found['code']!;
+                        _currencySymbolController.text = found['symbol']!;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
 
                 // Currency Code, Symbol, Tax Rate
                 Row(
@@ -599,38 +646,54 @@ class _RestaurantDialogState extends ConsumerState<_RestaurantDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _currencyCodeController,
-                        decoration: const InputDecoration(labelText: 'Currency Code'),
+                        decoration: const InputDecoration(labelText: 'Currency Code', hintText: 'e.g. INR'),
+                        onChanged: (val) {
+                          final upper = val.trim().toUpperCase();
+                          final matched = _currencyPresets.any((p) => p['code'] == upper && upper != 'CUSTOM');
+                          setState(() {
+                            _selectedCurrencyPreset = matched ? upper : 'CUSTOM';
+                          });
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextFormField(
                         controller: _currencySymbolController,
-                        decoration: const InputDecoration(labelText: 'Currency Symbol'),
+                        decoration: const InputDecoration(labelText: 'Currency Symbol', hintText: 'e.g. ₹'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextFormField(
                         controller: _taxRateController,
-                        decoration: const InputDecoration(labelText: 'Tax Rate (e.g. 0.05)'),
+                        decoration: const InputDecoration(labelText: 'Tax Rate', hintText: 'e.g. 0.05'),
                         keyboardType: TextInputType.number,
                       ),
                     ),
                   ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 4),
+                  child: Text(
+                    _currencyCodeController.text.trim().toUpperCase() == 'INR'
+                        ? '• Indian numbering format applied: ₹ 10,00,000.00 (Lakhs & Crores)'
+                        : '• Western numbering format applied: ${_currencySymbolController.text.trim().isEmpty ? r'$' : _currencySymbolController.text.trim()} 1,000,000.00 (Thousands & Millions)',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                  ),
                 ),
                 const SizedBox(height: 16),
 
                 // Receipt Header & Footer
                 TextFormField(
                   controller: _receiptHeaderController,
-                  decoration: const InputDecoration(labelText: 'Receipt Header Note'),
+                  decoration: const InputDecoration(labelText: 'Receipt Header Note', hintText: 'e.g. Welcome to Deccan Spice'),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _receiptFooterController,
-                  decoration: const InputDecoration(labelText: 'Receipt Footer Note'),
+                  decoration: const InputDecoration(labelText: 'Receipt Footer Note', hintText: 'e.g. Thank you for dining with us!'),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 16),

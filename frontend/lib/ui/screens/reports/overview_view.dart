@@ -15,10 +15,15 @@ class OverviewView extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         dashboardAsync.when(skipLoadingOnRefresh: false, 
-          data: (data) => Row(
-            children: [
-              Expanded(
-                child: _KpiCard(
+          data: (data) {
+            final netVal = (data['net'] as num?)?.toDouble() ?? 0.0;
+            final inflowVal = (data['inflow'] as num?)?.toDouble() ?? 0.0;
+            final marginPct = inflowVal > 0 ? ((netVal / inflowVal) * 100).toStringAsFixed(1) : '0.0';
+            final isPositive = netVal >= 0;
+
+            final kpi1 = Column(
+              children: [
+                _KpiCard(
                   title: 'CASH INFLOW',
                   value: CurrencyFormatter.format(data['inflow'], decimalDigits: 0),
                   icon: Icons.arrow_upward,
@@ -26,10 +31,22 @@ class OverviewView extends ConsumerWidget {
                   percentage: '${data['inflow_pct'] >= 0 ? '+' : ''}${data['inflow_pct']}%',
                   percentageColor: data['inflow_pct'] >= 0 ? AppTheme.primaryContainer : AppTheme.error,
                 ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: _KpiCard(
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _PaymentSplitChip('Cash', data['cash_inflow'])),
+                    const SizedBox(width: 8),
+                    Expanded(child: _PaymentSplitChip('UPI', data['upi_inflow'])),
+                    const SizedBox(width: 8),
+                    Expanded(child: _PaymentSplitChip('Card', data['card_inflow'])),
+                  ],
+                ),
+              ],
+            );
+
+            final kpi2 = Column(
+              children: [
+                _KpiCard(
                   title: 'CASH OUTFLOW',
                   value: CurrencyFormatter.format(data['outflow'], decimalDigits: 0),
                   icon: Icons.arrow_downward,
@@ -37,10 +54,22 @@ class OverviewView extends ConsumerWidget {
                   percentage: '${data['outflow_pct'] >= 0 ? '+' : ''}${data['outflow_pct']}%',
                   percentageColor: data['outflow_pct'] >= 0 ? AppTheme.error : AppTheme.primaryContainer,
                 ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: _KpiCard(
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _PaymentSplitChip('Groceries', data['grocery_outflow'])),
+                    const SizedBox(width: 8),
+                    Expanded(child: _PaymentSplitChip('Expenses', data['expense_outflow'])),
+                    const SizedBox(width: 8),
+                    Expanded(child: _PaymentSplitChip('Salaries', data['salary_outflow'])),
+                  ],
+                ),
+              ],
+            );
+
+            final kpi3 = Column(
+              children: [
+                _KpiCard(
                   title: 'NET CASHFLOW',
                   value: CurrencyFormatter.format(data['net'], decimalDigits: 0),
                   icon: Icons.account_balance,
@@ -48,9 +77,41 @@ class OverviewView extends ConsumerWidget {
                   percentage: '${data['net_pct'] >= 0 ? '+' : ''}${data['net_pct']}%',
                   percentageColor: data['net_pct'] >= 0 ? AppTheme.primary : AppTheme.error,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TextSplitChip('Margin', '$marginPct%', isAccent: isPositive),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: _TextSplitChip(
+                        'Operating Status',
+                        isPositive
+                            ? 'Surplus'
+                            : ((data['salary_outflow'] as num?)?.toDouble() ?? 0.0) > 0
+                                ? 'Deficit (Payroll)'
+                                : 'Deficit',
+                        isAccent: isPositive,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: kpi1),
+                const SizedBox(width: 24),
+                Expanded(child: kpi2),
+                const SizedBox(width: 24),
+                Expanded(child: kpi3),
+              ],
+            );
+          },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, st) => Center(child: Text('Error: $e')),
         ),
@@ -365,7 +426,13 @@ class _GenericTableCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: Theme.of(context).textTheme.headlineMedium),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.fullscreen),
                   onPressed: () => _showFullScreen(context),
@@ -464,4 +531,73 @@ class _KpiCard extends StatelessWidget {
 }
 
 
+class _PaymentSplitChip extends StatelessWidget {
+  final String label;
+  final dynamic amount;
+  const _PaymentSplitChip(this.label, this.amount);
 
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Text(CurrencyFormatter.format(amount ?? 0, decimalDigits: 0), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+}
+
+class _TextSplitChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isAccent;
+  const _TextSplitChip(this.label, this.value, {this.isAccent = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: isAccent ? Colors.green.withValues(alpha: 0.05) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isAccent ? Colors.green.shade200 : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isAccent ? Colors.green.shade800 : Colors.grey.shade600,
+              fontWeight: FontWeight.bold,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: isAccent ? Colors.green.shade900 : Colors.black87,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}

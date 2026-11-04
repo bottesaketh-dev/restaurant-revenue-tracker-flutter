@@ -124,7 +124,7 @@ flowchart LR
     H["Expenses (OPEX)<br/>Direct/Indirect Cash Outflows"]:::mod
     I["Billing & Invoicing<br/>Split Tender, GST & ESC/POS Print"]:::mod
     J["Analytics & Reports<br/>6-Pillar Intelligence & CSV/PDF"]:::mod
-    K["AI Command Center<br/>LangChain SQL Agent & Altair Charts"]:::mod
+    K["AI Command Center<br/>LangChain SQL Agent & Native fl_chart Visualizations"]:::mod
 
     A --> B & C & D & E & F & G & H & I & J & K
     C -->|Menu Items| B
@@ -163,8 +163,8 @@ The frontend utilizes Flutter's responsive primitives (`LayoutBuilder`, conditio
 | **Database Engine** | SQLite (Embedded) | `3.49.1` | Relational storage for development and local deployments | `backend/local.db`, `inspect_db.py` |
 | **Authentication** | PyJWT & Passlib (bcrypt) | `^2.8.0` / `^1.7.4` | JWT issuance, verification, and bcrypt password hashing | `backend/security.py` |
 | **Thermal Printing** | Windows winspool.drv / ctypes | Native Win32 | Raw ESC/POS byte streaming to Retsol RTP-82 USB/COM printer | `backend/services/thermal_printer.py` |
-| **AI SQL Engine** | LangChain & Groq/OpenAI | `^0.1.0` | Natural language text-to-SQL agent with table safety rules | `backend/services/ai/ai_service.py` |
-| **AI Visualizations** | Altair / Vega-Lite | `^5.0.0` | Dynamic Python chart code generation and HTML rendering | `backend/services/ai/chart_service.py` |
+| **AI SQL Engine** | LangChain & Groq/OpenAI | `^0.1.0` | Natural language text-to-SQL agent with safe authorizer guard | `backend/services/ai/engine.py` |
+| **AI Visualizations** | Declarative JSON & fl_chart | `fl_chart: ^0.65.0` | Declarative chart spec builder & native client-side rendering | `backend/services/ai/chart_tool.py` |
 | **Document Export** | FPDF & Python csv | `^1.7.2` | Server-side PDF and CSV report file generation | `backend/services/pdf_export.py` |
 
 ### 3.2 System Component Architecture
@@ -631,9 +631,9 @@ Organized in a responsive 12-column scrollable grid:
 | :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | 1 | **Dashboard Title** | `Text` | Display screen title & date | Static + `DateTime.now()` | Non-interactive | Visible to all roles | Formatted `EEEE, dd MMMM yyyy` |
 | 2 | **Refresh Button** | `IconButton` | Reload live dashboard KPIs | `homeProvider.notifier` | Invalidates & refetches `homeProvider` | Accessible by all | Triggers loading indicator on stat cards |
-| 3 | **Today's Inflow Card** | `StatCard` | Display gross dining inflow | `homeData.inflow` | Displays formatted currency; green trend | Unrestricted | Shows ₹ formatted amount; skeleton on load |
-| 4 | **Today's Outflow Card** | `StatCard` | Display total expenses + groceries | `homeData.outflow` | Displays formatted currency; red trend | Hidden for Cashiers | Shows ₹ formatted amount |
-| 5 | **Net Cashflow Card** | `StatCard` | Display Net Margin (Inflow - Outflow) | `homeData.net_cashflow` | Emerald if positive; Crimson if negative | Hidden for Cashiers | Dynamic color change based on margin sign |
+| 3 | **Today's Inflow Card** | `_KpiCard` + Chips | Display gross dining inflow + Tender split | `homeData.inflow`, `cash_inflow`, `upi_inflow`, `card_inflow` | Displays formatted currency; green trend; tender chips for Cash, UPI, Card | Unrestricted | Shows ₹ formatted amount; skeleton on load |
+| 4 | **Today's Outflow Card** | `_KpiCard` + Chips | Display total expenses + Groceries + Salaries split | `homeData.outflow`, `grocery_outflow`, `expense_outflow`, `salary_outflow` | Displays formatted currency; red trend; category chips for Groceries, Expenses, Salaries | Hidden for Cashiers | Shows ₹ formatted amount |
+| 5 | **Net Cashflow Card** | `_KpiCard` + Chips | Display Net Cashflow (Inflow - Outflow) + Margin & Status | `homeData.net`, `marginPct`, `status` | Emerald if surplus; Crimson if deficit; chips for Net Margin % and Operating Status | Hidden for Cashiers | Dynamic color change based on margin sign |
 | 6 | **Total Orders Card** | `StatCard` | Display bill count for today | `homeData.orders_count` | Numerical metric counter | Unrestricted | Integer count with shopping bag icon |
 | 7 | **Cashflow Breakdown** | `Card` / `ListView` | Itemize expense categories | `homeData.breakdown` | Expands into details of Bills/Groceries/Salaries | Admin / Manager only | List with individual category totals |
 | 8 | **Payment Split Ring** | `fl_chart.PieChart` | Visualize tender proportions | `homeData.payment_splits` | Hover/Tap shows tender amount & percentage | Unrestricted | Color-coded slices (Cash, UPI, Card, Net) |
@@ -1391,61 +1391,85 @@ flowchart TD
 - **Primary Widget:** `AiCommandCenterScreen` (ConsumerStatefulWidget)
 - **Role Access:** `SUPER_ADMIN`, `RESTAURANT_ADMIN`, `BRANCH_MANAGER`; (Restricted for `CASHIER` and `STAFF`)
 - **Parent Layout / Entry Point:** Accessible via Left Sidebar navigation.
-- **Business Purpose:** Advanced conversational natural-language data intelligence console allowing restaurant owners and managers to query complex database metrics in plain English (e.g., *"Compare food costs between Banjara Hills and Hitec City for Biryani"*), inspect automatically generated SQL queries, and render interactive Altair/Vega-Lite data visualizations.
+- **Business Purpose:** Persistent conversational AI operational console modeled on ChatGPT, Claude, and Gemini, purpose-built for multi-tenant restaurant operations and analytics. Allows restaurant owners and managers to query complex revenue metrics, food costs, menu sales, payroll distributions, and branch performance in plain English, with in-timeline progressive streaming, collapsible execution plans, and native responsive charts rendered directly inside the chat timeline.
 
 #### B. Layout and Visual Structure
-- **Conversation Thread:** Scrollable chat feed rendering alternating query bubbles (User prompt right-aligned in indigo; AI response left-aligned in dark slate).
-- **AI Response Content Cards:**
-  - Formatted Markdown text explanation.
-  - Collapsible SQL inspection tile displaying generated SQL query.
-  - Interactive visualization viewport embedding Altair charts via webview or SVG/HTML frame (`/api/v1/chat/chart/{chart_id}`).
-- **Suggested Prompts Carousel:** Horizontally scrolling chips with curated operational queries.
-- **Prompt Composer Bar:** Multi-line text field with microphone icon (speech input placeholder) and Send action button.
+- **Persistent Conversation History Sidebar / Drawer:**
+  - Desktop: 300px left sidebar with `+ New Chat` action button, chat search filter bar, and scrollable list of conversations with relative timestamps (`Today`, `Yesterday`, `X days ago`), active chat highlighting, and rename/delete action menus.
+  - Mobile: Full drawer with slide-out animation accessed via top-left hamburger menu.
+- **Top Header Bar:**
+  - AI Command Center branding with spark icon.
+  - Active Branch Focus Badge (`📍 {Branch Name}` or `📍 All Branches (Enterprise)`), automatically synchronized with the global branch switcher.
+- **Conversation Thread Timeline:**
+  - Empty State: Centered welcoming hero card with 6 intelligent quick-prompt suggestion chips (`Today's Revenue`, `Branch Comparison`, `Top Selling Items`, etc.).
+  - User Bubbles: Right-aligned styled containers in `AppTheme.primary` with white typography.
+  - System Events: Centered subtle capsule pills (`⚡ Switched to branch: {Branch Name}`) visibly marking tenant/branch context changes in the conversation log.
+  - Assistant Messages: Left-aligned clean white cards with AI spark icon, in-timeline animated "Thinking..." indicator and checklist during processing, collapsible execution stage pill (`✓ Completed X execution steps`), rich Markdown typography, native `fl_chart` data visualizations, copy-to-clipboard button, and retry action.
+- **Native Inline Chart Rendering:**
+  - Interactive Bar, Line, Pie, and Donut charts powered natively by `fl_chart` inside the message timeline.
+  - Touch tooltips, legends, and an expandable `"View Data (X)"` button that reveals a responsive tabular `DataTable` with Indian currency formatting.
+- **Fixed Bottom Composer:**
+  - Multi-line `TextField` with light placeholder text.
+  - Stop Generation button (red stop square) displayed while the backend is streaming.
+  - Send button (primary purple upward arrow) displayed when idle and text is present.
 
 #### C. Complete UI Element Inventory Table
 
 | # | Element / Label | Widget / Type | Purpose | Data Source | Interaction / Behavior | Validation / Permissions | State / Feedback |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | **Chat Feed** | `ListView.builder` | Display query conversation | `chatStreamProvider` | Scrollable thread of messages | All authorized roles | Auto-scrolls to bottom on response |
-| 2 | **Suggested Query Chips**| `Wrap` / `ActionChip` | Quick-launch analytical queries | Pre-defined queries list | Clicking chip populates prompt and submits | All authorized roles | Instant query dispatch |
-| 3 | **Prompt Input Field** | `TextField` | Enter natural language question| Local `TextEditingController` | Captures query text; supports multiline | Min 3 characters | Expands up to 4 lines |
-| 4 | **Send Query Button** | `IconButton` | Submit question to AI engine | Chat notifier | Dispatches question; sets `isThinking = true` | Disabled if field empty | Turns into spinner while thinking |
-| 5 | **AI Markdown Bubble** | `MarkdownBody` | Render AI natural text answer | `message.content` | Formatted bold headers, lists, and tables | None | High-readability typography |
-| 6 | **SQL Code Inspection**| `ExpansionTile` | Inspect agent-generated SQL | `message.sql_query` | Expands to reveal raw SQL query with syntax tag| Admin & Manager | Monospaced syntax-highlighted block |
-| 7 | **Interactive Chart Frame**| `HtmlElementView` / `Container` | Display Altair visualization | `/api/v1/chat/chart/{id}`| Interactive HTML/Vega chart with tooltips | None | Rendered interactive chart |
-| 8 | **AiChatBubble (Stub)** | `FloatingActionButton` | Global floating launcher | `ai_chat_bubble.dart` | Present in widget tree; unhooked prototype | Prototype stub | Does not stream responses (gap) |
+| 1 | **+ New Chat** | `ElevatedButton.icon` | Create independent chat conversation | `chatProvider.notifier` | Resets active conversation; provides fresh context | All authorized roles | Clears active thread; preserves past chats |
+| 2 | **Conversation Search** | `TextField` | Filter past conversation titles | Local filter state | Filters chat list in real time | None | Instant client-side list filtering |
+| 3 | **Conversation List** | `ListView.builder` | Select past conversations | `chatState.conversations` | Clicking switches active conversation and loads history | Scoped to user and restaurant | Active chat highlighted in primary tint |
+| 4 | **Conversation Actions** | `PopupMenuButton` | Rename or delete thread | `chatProvider.notifier` | Displays popup menu with Rename and Delete options | Owner of conversation | Rename dialog / Delete confirmation |
+| 5 | **Branch Focus Badge** | `Container` / `Row` | Display active branch scope | `selectedBranchProvider` | Displays branch name or Enterprise badge | Dynamically synchronized | Green dot + primary border pill |
+| 6 | **Prompt Suggestion Chips**| `Wrap` / `ActionChip` | Quick-launch analytical queries | Pre-defined operational queries | Clicking submits prompt immediately | All authorized roles | Instant query dispatch |
+| 7 | **Prompt Composer Field** | `TextField` | Enter natural language question| Local `TextEditingController` | Captures query; supports multiline; Enter submits | Min 1 character | Light placeholder; expands to 4 lines |
+| 8 | **Stop Generation Button**| `IconButton.filled` | Stop active backend LLM stream | `chatProvider.notifier.stopGeneration` | Cancels active stream and backend request context | Visible only when `isStreaming: true` | Turns assistant message status to cancelled |
+| 9 | **Send Message Button** | `IconButton.filled` | Submit prompt to AI engine | `chatProvider.notifier.sendMessage` | Dispatches query and opens NDJSON stream | Visible when idle; enabled if text != '' | Disables while empty; primary filled |
+| 10| **In-Timeline Thinking** | `Container` / `Column` | Real-time activity indicator | `message.status == 'thinking'` | Animated spinner with checklist of progress stages | Visible during active processing | Animated subtle pulse; checklist updates |
+| 11| **Execution Plan Summary**| `InkWell` / `Container` | Compact activity stages summary | `message.steps` | Auto-collapses on finish; tap toggles full checklist | Visible when steps exist and not thinking | `✓ Completed X execution steps` pill |
+| 12| **Markdown Response** | `MarkdownBody` | Render formatted answer | `message.content` | Formatted bold headers, lists, and tables | None | High-readability typography |
+| 13| **Native Inline Chart** | `ChatInlineChart` | Render native client-side chart | `message.charts` (`fl_chart`) | Bar, Line, Pie, Donut with touch tooltips | Declarative spec | Native widget; responsive width |
+| 14| **Tabular Data Viewer** | `DataTable` | View underlying query records | `chart.data` / `message.rawData` | Toggled by clicking `View Data (X)` / `Hide Data` | None | Horizontally scrollable data table |
+| 15| **Copy Response Button**| `IconButton` | Copy answer to system clipboard | `message.content` | Copies raw Markdown text to clipboard | Assistant messages | Success toast notification |
+| 16| **Retry Query Button** | `IconButton` | Re-run failed query | Preceding user message | Re-submits prior user prompt | Displayed if `status == 'failed'` | Re-dispatches query stream |
 
 #### D. Data Sources and State Management
-- **Consumed Providers:** `chatStreamProvider`, `selectedRestaurantIdProvider`, `selectedBranchProvider`.
-- **State Modifications:** Appends prompt to `chatStreamProvider`, manages streaming tokens, and stores returned `chart_id`.
+- **Consumed Providers:** `chatProvider`, `selectedRestaurantIdProvider`, `selectedBranchProvider`, `branchListProvider`.
+- **State Architecture (`ChatState`):**
+  - `conversations`: List of persistent `ChatConversationModel` objects.
+  - `activeConversationId`: Currently loaded conversation UUID.
+  - `messages`: Timeline list of `ChatMessageModel` objects (user, system, assistant).
+  - `isStreaming`: Boolean flag indicating active NDJSON stream processing.
+  - `isLoadingConversations` / `isLoadingMessages`: Boolean loading states.
+- **NDJSON Stream Parser:** Progressive chunk reader maintaining an internal buffer across partial TCP chunks, parsing complete `\n`-delimited JSON events (`plan`, `step_started`, `step_completed`, `message_chunk`, `final`, `error`, `cancelled`).
 
-#### E. Backend Integration and API Calls
-- `POST /api/v1/chat`: Dispatches natural language prompt to backend LangChain agent.
-  - Request: `{"message": "What is the top selling menu item today?", "restaurant_id": "rest_001", "branch_id": "br_001"}`
-  - Response:
-    ```json
-    {
-      "reply": "The top selling item today is **Chicken Dum Biryani** with 42 portions sold, generating **₹15,960.00**.",
-      "sql_query": "SELECT mi.name, SUM(oi.quantity) as total_qty, SUM(oi.total_price) as total_rev FROM order_items oi JOIN menu_items mi ON oi.menu_item_id = mi.item_id JOIN orders o ON oi.order_id = o.order_id WHERE o.restaurant_id = 'rest_001' AND date(o.created_at) = date('now') GROUP BY mi.name ORDER BY total_qty DESC LIMIT 1;",
-      "chart_id": "chart_77491"
-    }
-    ```
-- `GET /api/v1/chat/chart/{chart_id}`: Serves standalone Altair/Vega-Lite HTML visualization.
+#### E. Backend Integration and API Endpoints
+- `GET /api/v1/chat/conversations`: Returns user's persistent conversations scoped by `restaurant_id` and `user_id`.
+- `POST /api/v1/chat/conversations`: Creates a new persistent conversation with an initial title.
+- `GET /api/v1/chat/conversations/{conversation_id}`: Loads full message history including plan steps, charts, and raw records.
+- `PATCH /api/v1/chat/conversations/{conversation_id}`: Renames conversation title.
+- `DELETE /api/v1/chat/conversations/{conversation_id}`: Deletes conversation and cascades message records.
+- `POST /api/v1/chat/conversations/{conversation_id}/system-event`: Records branch switch event (`Switched to branch: ...`).
+- `POST /api/v1/chat/conversations/{conversation_id}/stop`: Signals backend cancellation event to terminate LLM generation.
+- `POST /api/v1/chat/conversations/{conversation_id}/messages`: Streams assistant response via `application/x-ndjson`.
+- `POST /api/v1/chat`: Backwards-compatible turn endpoint returning `application/x-ndjson`.
 
-#### F. Business Logic and Financial Rules
-- **LangChain Safe-Table Isolation:** Backend agent configures `SAFE_TABLES` list strictly excluding the `users` table so AI SQL queries can never read password hashes or user credentials.
-- **Mandatory Tenant Guardrail:** Prompt injector forces:
-  ```
-  "CRITICAL: You MUST filter all queries with: WHERE restaurant_id = '{eff_r_id}'"
-  ```
-  Preventing cross-tenant data leakage through natural language prompt injection.
+#### F. Security Architecture and C-Level SQLite Guardrails
+- **Zero Raw SQL / Schema Exposure:** Model chain-of-thought, internal database schemas, table structures, and raw SQL queries are strictly hidden from the frontend user interface.
+- **Native SQLite `PRAGMA query_only = ON`:** All AI query executions run on an isolated read-only SQLite connection.
+- **Native C-Driver SQLite Authorizer (`con.set_authorizer`):** Configured at the SQLite driver level to immediately reject any modifying SQL actions (`SQLITE_INSERT`, `SQLITE_UPDATE`, `SQLITE_DELETE`, `SQLITE_DROP_TABLE`, `SQLITE_ALTER_TABLE`) and unconditionally block read access to sensitive tables (`users`, `user_permissions`, `sqlite_master`).
+- **Strict Tenant & Branch Isolation:** Effective restaurant ID is resolved by backend security and enforced as a mandatory query parameter filter. Branch managers cannot access foreign branch data or conversations.
+- **No Unsafe Python Code Execution:** Complete elimination of Altair Python code generation and `exec()`. Charts are generated purely as declarative JSON structures (`bar`, `line`, `pie`, `donut`, `area`) validated by Pydantic.
 
 #### G. Edge Cases, Validations, and Error Handling
-- **Ambiguous Natural Language Query:** If agent cannot parse query, it returns: `"I could not generate a safe SQL query for that question. Please clarify your metrics or date range."`
-- **Implementation Gap (`AiChatBubble`):** The floating widget `frontend/lib/ui/widgets/ai_chat_bubble.dart` has an empty `onPressed: () {}` callback and does not stream responses; users must use the dedicated `/ai` screen.
+- **Partial Network Chunks:** The Flutter NDJSON parser buffers incomplete chunks across TCP packets until newline delimiters arrive.
+- **User Stream Interruption:** Tapping Stop triggers an immediate HTTP client abort and dispatches `/stop` to backend, safely releasing the execution thread.
+- **Branch Switching During Active Chat:** Switching branches while in a chat logs a system event in the timeline, updates the conversation's active branch scope, and instructs subsequent queries to use the new branch.
+- **Disconnection & Reconnection:** All completed messages, plan steps, and declarative charts are persisted in SQLite, ensuring conversations reload with full fidelity across app restarts.
 
 #### H. User Flows and Navigation
-- User navigates to `/ai` $\rightarrow$ taps chip "What is today's total revenue?" $\rightarrow$ AI agent executes SQL query $\rightarrow$ returns text answer and chart $\rightarrow$ user inspects generated SQL query.
+- User navigates to `/ai` $\rightarrow$ views past conversation history in sidebar $\rightarrow$ selects existing chat or taps `+ New Chat` $\rightarrow$ types question or taps prompt chip $\rightarrow$ animated "Thinking..." indicator appears in conversation timeline with execution checklist $\rightarrow$ assistant response streams progressively $\rightarrow$ checklist auto-collapses into summary pill $\rightarrow$ native `fl_chart` renders inline with optional "View Data" table $\rightarrow$ user switches branch $\rightarrow$ system event records branch switch in timeline.
 
 #### I. Screen-Level Mermaid Diagram
 
@@ -1454,22 +1478,29 @@ sequenceDiagram
     autonumber
     actor Owner as Restaurant Owner
     participant UI as AiCommandCenterScreen
+    participant Notifier as ChatNotifier (Riverpod)
     participant ChatAPI as FastAPI /api/v1/chat
-    participant Agent as LangChain SQL Agent
-    participant Chart as Altair Chart Service
+    participant Engine as RestaurantAgentService
+    participant Guard as SafeSQLExecutor
     participant DB as SQLite (local.db)
 
-    Owner->>UI: Types: "Show hourly sales trend today"
-    UI->>ChatAPI: POST /api/v1/chat (Prompt + Tenant Context)
-    ChatAPI->>Agent: Invoke Agent with SAFE_TABLES & Tenant Filter
-    Agent->>DB: Execute Read-Only SQL (Hourly Inflow Aggregate)
-    DB-->>Agent: Raw Query Result Rows
-    Agent->>Chart: Generate Python Altair Chart Code
-    Chart-->>ChatAPI: Returns chart_id (Rendered HTML)
-    ChatAPI-->>UI: Returns JSON (Reply Markdown, SQL, chart_id)
-    UI->>UI: Render Markdown Explanation
-    UI->>UI: Render Collapsible SQL Inspection Block
-    UI->>UI: Embed Altair Chart Viewport (/api/v1/chat/chart/{id})
+    Owner->>UI: Types: "Show hourly sales trend for Madhapur"
+    UI->>Notifier: sendMessage("Show hourly sales trend...")
+    Notifier->>ChatAPI: POST /chat/conversations/{id}/messages
+    ChatAPI->>Engine: stream_process_query(prompt, context)
+    Engine-->>Notifier: event: plan (checklist stages)
+    Notifier->>UI: Render in-timeline "Thinking..." + stages
+    Engine->>Guard: execute_safe_sql("SELECT ... FROM bills WHERE ...")
+    Guard->>DB: PRAGMA query_only=ON & set_authorizer
+    DB-->>Guard: Scoped tabular results
+    Guard-->>Engine: Query result DataFrame
+    Engine->>Engine: build_declarative_chart_spec(df, chart_type='bar')
+    Engine-->>Notifier: event: step_completed, message_chunk (tokens)
+    Notifier->>UI: Progressive text streaming in message card
+    Engine-->>Notifier: event: final (content, chart_spec, raw_data)
+    Engine->>DB: Persist ChatMessage with metadata_json
+    Notifier->>UI: Auto-collapse checklist into summary pill
+    UI->>UI: Render native fl_chart BarChart directly in message
 ```
 
 ---
@@ -2095,21 +2126,30 @@ graph TD
 ---
 
 ### 9.6 AI Natural Language SQL Assistant Workflow
-The AI Command Center allows natural-language restaurant intelligence without exposing database credentials:
+The AI Command Center allows natural-language restaurant intelligence without exposing database credentials or raw SQL:
 
 ```mermaid
 flowchart TD
-    UserQuery["1. User types: 'Compare Biryani sales between Banjara Hills and Hitec City'"] --> SendChat["POST /api/v1/chat with prompt & active tenant context"]
-    SendChat --> GuardrailInject["2. Injected Prompt Safety Rule:
-    - Tables Allowed: SAFE_TABLES (excludes 'users')
-    - Enforced Filter: WHERE restaurant_id = 'rest_001'"]
-    GuardrailInject --> AgentExecution["3. LangChain SQL Agent generates and executes read-only query"]
-    AgentExecution --> GenerateChart["4. Chart Service synthesizes Python Altair code -> writes HTML chart"]
-    GenerateChart --> ReturnPayload["5. Return JSON:
-    - Markdown formatted answer
-    - SQL query for inspection
-    - chart_id for iframe visualization"]
-    ReturnPayload --> ClientRender["6. Frontend renders text, collapsible SQL tile, and interactive Altair chart"]
+    UserQuery["1. User types prompt: 'Compare Biryani sales between Banjara Hills and Hitec City'"] --> SendChat["POST /api/v1/chat/conversations/{id}/messages (with active branch & tenant)"]
+    SendChat --> GuardrailInject["2. Context & Guardrail Injection:
+    - Injects tenant & branch constraints: WHERE restaurant_id = {eff_id}
+    - Emits initial 'plan' events: Understanding, Querying, Analyzing, Responding"]
+    GuardrailInject --> AgentExecution["3. LangChain SQL Agent executes read-only query via SafeSQLExecutor
+    - Native SQLite PRAGMA query_only = ON
+    - Native C-authorizer blocks modifying statements & sensitive tables (users)"]
+    AgentExecution --> GenerateChart["4. Chart Tool builds declarative JSON specification
+    - Replaces Python exec() with validated structured spec (chart_type, series, data)"]
+    GenerateChart --> ProgressiveStream["5. Progressive NDJSON Stream:
+    - Step start/completion events
+    - Real-time token chunks for smooth typing
+    - Final payload with declarative chart spec & raw records"]
+    ProgressiveStream --> ClientRender["6. Flutter Client Rendering:
+    - Auto-collapses checklist into '✓ Completed X steps'
+    - Formats markdown answer
+    - Natively renders Bar/Line/Pie fl_chart directly inside the timeline
+    - Provides expandable 'View Data' tabular viewer"]
+    ClientRender --> PersistDB["7. SQLite Persistence:
+    - Saves user and assistant messages with plan steps and chart specs to chat_messages"]
 ```
 
 ---
@@ -2119,11 +2159,13 @@ flowchart TD
 ### 10.1 Database Overview & Physical Storage
 - **Database Engine:** SQLite 3.49.1 (Embedded Relational Database Engine).
 - **Primary Database File:** `c:\Users\SakethBotte\OmetrionGenesis\restaurant-revenue-tracker-flutter\backend\local.db`.
-- **Database Architecture:** 17 physical tables, 170 distinct columns, zero external server dependencies for local development and edge deployments.
+- **Database Architecture:** 19 physical tables, 180 distinct columns, zero external server dependencies for local development and edge deployments.
 - **Current Live Record Volume (Seeded Multi-Tenant Dataset):**
   - `bills`: 13,303 records
   - `order_items`: 39,938 records
   - `orders`: 13,303 records
+  - `chat_conversations`: Persistent multi-tenant conversational threads
+  - `chat_messages`: Multi-turn conversational messages with plan steps and declarative chart specs
   - `grocery_purchases`: 552 records
   - `recipe_ingredients`: 306 records
   - `salary_payments`: 270 records
@@ -2183,7 +2225,7 @@ erDiagram
 
 ---
 
-### 10.3 Comprehensive Data Dictionary (All 17 Tables / 170 Columns)
+### 10.3 Comprehensive Data Dictionary (All 21 Tables / 197 Columns)
 
 #### 1. Table: `restaurants` (13 Columns)
 *Represents top-tier restaurant organization tenants.*
@@ -2487,6 +2529,36 @@ erDiagram
 | `updated_at` | `DATETIME` | `DateTime` | Yes | No | None | `CURRENT_TIMESTAMP` | Last ticket update timestamp. |
 | `resolved_at` | `DATETIME` | `DateTime` | Yes | No | None | None | Timestamp when status was set to `resolved` or `closed`. |
 
+#### 20. Table: `chat_conversations` (9 Columns)
+*Persistent conversational AI threads scoped strictly by user and restaurant tenant.*
+
+| Column | Declared Type | ORM Type | Nullable | PK | FK / References | Default | Description |
+| :--- | :--- | :--- | :---: | :---: | :--- | :--- | :--- |
+| `conversation_id` | `VARCHAR(36)` | `String` | No | Yes | None | UUIDv4 | Unique conversation identifier. |
+| `user_id` | `INTEGER` | `Integer` | No | No | `users.user_id` | User who created and owns this conversation. |
+| `restaurant_id` | `INTEGER` | `Integer` | No | No | `restaurants.restaurant_id` | Organization boundary scoping the conversation. |
+| `branch_id` | `INTEGER` | `Integer` | Yes | No | `branches.branch_id` | Active branch focus for the conversation context. |
+| `title` | `VARCHAR(255)` | `String` | No | No | None | `'New Chat'` | Conversation title, auto-derived from first inquiry. |
+| `is_archived` | `BOOLEAN` | `Boolean` | No | No | None | `False` | Soft deletion / archiving flag. |
+| `created_at` | `DATETIME` | `DateTime` | No | No | None | `CURRENT_TIMESTAMP` | Conversation creation timestamp. |
+| `updated_at` | `DATETIME` | `DateTime` | No | No | None | `CURRENT_TIMESTAMP` | Last update timestamp. |
+| `last_message_at`| `DATETIME` | `DateTime` | Yes | No | None | None | Timestamp of the most recent message turn. |
+
+#### 21. Table: `chat_messages` (9 Columns)
+*Granular timeline turns (user, assistant, system events) with execution stages and declarative chart specifications.*
+
+| Column | Declared Type | ORM Type | Nullable | PK | FK / References | Default | Description |
+| :--- | :--- | :--- | :---: | :---: | :--- | :--- | :--- |
+| `message_id` | `VARCHAR(36)` | `String` | No | Yes | None | UUIDv4 | Unique message turn identifier. |
+| `conversation_id` | `VARCHAR(36)` | `String` | No | No | `chat_conversations.conversation_id` | Foreign key referencing parent conversation. |
+| `role` | `VARCHAR(20)` | `String` | No | No | None | `'user'` | Message role: `user`, `assistant`, `system`. |
+| `content` | `TEXT` | `Text` | No | No | None | None | Markdown content body or system event message. |
+| `restaurant_id` | `INTEGER` | `Integer` | No | No | `restaurants.restaurant_id` | Organization boundary scoping the message. |
+| `branch_id` | `INTEGER` | `Integer` | Yes | No | `branches.branch_id` | Branch context at message submission time. |
+| `status` | `VARCHAR(20)` | `String` | No | No | None | `'completed'` | Status: `pending`, `thinking`, `completed`, `failed`, `cancelled`. |
+| `metadata_json` | `JSON` / `TEXT` | `JSON` | Yes | No | None | None | Serialized execution plan steps, declarative chart specs, and tabular records. |
+| `created_at` | `DATETIME` | `DateTime` | No | No | None | `CURRENT_TIMESTAMP` | Message turn creation timestamp. |
+
 ---
 
 ### 10.4 Schema vs ORM Discrepancy Analysis
@@ -2568,12 +2640,19 @@ sequenceDiagram
 | `POST` | `/api/v1/branches/access/grant`| Grant branch tab access | Super Admin / Branch Admin | `BranchAccessGrant` | `UserResponse` | Branch Access API |
 | `GET` | `/api/v1/branches/access/users`| List branch user permissions | Super Admin / Branch Admin | None | `List[UserResponse]` | Branch Access API |
 
-#### 4. AI Natural Language SQL Router (`routers/chat.py` — 2 Endpoints)
+#### 4. AI Natural Language SQL Router (`routers/chat.py` — 9 Endpoints)
 
 | Method | Endpoint Path | Summary / Purpose | Auth / Role Scope | Request Payload | Response Schema | Frontend Call Site |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/chat` | Natural language SQL question | Manager & Admin | `ChatRequest` (message, ctx)| `ChatResponse` (sql, reply) | `chatStreamProvider` |
-| `GET` | `/api/v1/chat/chart/{chart_id}` | Render generated Altair HTML chart | Manager & Admin | None | `HTMLResponse` | AiCommandCenter iframe |
+| `GET` | `/api/v1/chat/conversations` | List user's persistent chat threads | Manager & Admin | None | `List[ConversationSummary]` | `chatProvider.loadConversations` |
+| `POST` | `/api/v1/chat/conversations` | Create new independent chat session | Manager & Admin | `ConversationCreateRequest` | `ConversationResponse` | `chatProvider.startNewChat` |
+| `GET` | `/api/v1/chat/conversations/{id}` | Get full conversation & message history | Manager & Admin | None | `ConversationDetailResponse` | `chatProvider.selectConversation` |
+| `PATCH` | `/api/v1/chat/conversations/{id}` | Rename conversation title | Conversation Owner | `ConversationRenameRequest` | `ConversationResponse` | `_showRenameDialog` |
+| `DELETE`| `/api/v1/chat/conversations/{id}` | Delete conversation and cascade messages | Conversation Owner | None | `{"status": "deleted"}` | `_confirmDeleteDialog` |
+| `POST` | `/api/v1/chat/conversations/{id}/messages` | Stream assistant response (NDJSON) | Manager & Admin | `MessageSendRequest` | `application/x-ndjson` stream | `chatProvider.sendMessage` |
+| `POST` | `/api/v1/chat/conversations/{id}/stop` | Stop active LLM generation stream | Manager & Admin | None | `{"status": "cancelled"}` | `chatProvider.stopGeneration` |
+| `POST` | `/api/v1/chat/conversations/{id}/system-event` | Record branch switch system event | Manager & Admin | `SystemEventRequest` | `ChatMessageResponse` | `chatProvider.recordBranchSwitch` |
+| `POST` | `/api/v1/chat` | Backwards-compatible single-turn stream | Manager & Admin | `LegacyChatRequest` | `application/x-ndjson` stream | Legacy API consumers / E2E test |
 
 #### 5. Executive Dashboard Router (`routers/home.py` — 1 Endpoint)
 
@@ -2859,10 +2938,26 @@ To prevent IDOR vulnerabilities:
 ## 14. Currency, Dates, and Financial Calculations
 
 ### 14.1 Transactional Currency & Localization
-- **Currency Code:** Defaults to `INR` (Indian Rupee, ISO 4217).
+- **Currency Code:** Defaults to `INR` (Indian Rupee, ISO 4217) for Indian tenants, with multi-currency support (`USD`, `EUR`, `GBP`, `AED`, `SAR`, etc.).
 - **Currency Glyph:** Symbolized as `₹` across all frontend widgets via `CurrencyFormatter` (`frontend/lib/core/currency_formatter.dart`).
-- **Formatting Standards:** Formats currency using the Indian numbering grouping system:
-  $$\text{₹ } 69,650.60 \quad (\text{Lakhs and Crores syntax where applicable})$$
+- **Dynamic Regional Number Grouping:** The application automatically formats numbers according to the active tenant's currency conventions:
+  - **Indian Numbering System (Lakhs & Crores):**
+    - Automatically triggered when the tenant currency code is `INR`, `NPR`, `BDT`, `PKR`, `LKR` or glyph is `₹`, `Rs`, `Rs.`.
+    - Grouping logic: Last 3 digits are grouped, followed by repeating pairs of 2 digits:
+      $$\text{₹ } 999.00 \quad (\le 999 \text{ - no commas})$$
+      $$\text{₹ } 1,250.00 \quad (1,000 - 99,999 \text{ - single thousands comma})$$
+      $$\text{₹ } 1,00,000.00 \quad (1 \text{ Lakh - 2-digit grouping})$$
+      $$\text{₹ } 10,00,000.00 \quad (10 \text{ Lakhs / 1 Million})$$
+      $$\text{₹ } 1,00,00,000.00 \quad (1 \text{ Crore / 10 Million})$$
+      $$\text{₹ } 12,34,56,789.00 \quad (12.34 \text{ Crores})$$
+  - **International Numbering System (Thousands & Millions):**
+    - Automatically applied for international tenants (e.g. `USD`, `EUR`, `GBP`, `AED`, `SAR`):
+      $$\$ \text{ 1,000,000.00} \quad (\text{vs. Indian } \text{₹ } 10,00,000.00)$$
+      $$€ \text{ 10,000,000.00} \quad (\text{vs. Indian } \text{₹ } 1,00,00,000.00)$$
+- **Active Tenant Synchronization:**
+  - `CurrencyFormatter.setCurrency(symbol: ..., code: ...)` is automatically invoked by `activeTenantInfoProvider` and `currentRestaurantProvider` whenever the active organization changes.
+  - Restaurant creation and editing forms feature a curated **Currency Preset & Regional Formatting** dropdown with real-time format feedback.
+  - Receipt preview and POS settings display the active tenant's currency badge and grouping indicator (`Indian Format` vs `Western Format`).
 
 ---
 
@@ -3368,7 +3463,8 @@ sequenceDiagram
 | **AI Command Center & LangChain SQL Agent** | **VERIFIED** | Documented in **Section 7.11 & 9.6**: `SAFE_TABLES` guardrail, prompt injection defense, and Altair chart visualization. |
 | **End-to-End User Journeys with Sequence Diagrams** | **VERIFIED** | Documented in **Section 20**: 7 detailed multi-tenant operational journeys with step-by-step Mermaid sequence diagrams. |
 | **Preservation of Repository Integrity & Zero Secret Leakage** | **VERIFIED** | Zero application code or database records altered; all passwords and private keys redacted. |
+| **Form Input UX & Zero-Prefill Architecture** | **VERIFIED** | Global theme `inputDecorationTheme.hintStyle` set to light neutral `#9CA3AF`, label style `#6B7280`. All creation modals (Restaurants, Branches, Expenses, Groceries, Staff, POS Tables, Checkout) start with pristine empty input fields and distinct placeholder hints. |
 
 ---
-*Documentation compiled and verified on October 28, 2026 for IOR 360 Release 2.4.0.*
+*Documentation compiled and verified on October 31, 2026 for IOR 360 Release 2.5.0.*
 

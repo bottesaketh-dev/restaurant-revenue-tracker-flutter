@@ -145,6 +145,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                       decoration: const InputDecoration(
                         labelText: 'Username',
+                        hintText: 'e.g. manager_madhapur',
                         prefixIcon: Icon(Icons.person_outline),
                       ),
                     ),
@@ -156,6 +157,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onSubmitted: (_) => _login(),
                       decoration: InputDecoration(
                         labelText: 'Password',
+                        hintText: '••••••••',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(

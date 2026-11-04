@@ -33,9 +33,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       'email': '',
       'position': 'Waiter',
       'phone': '',
-      'monthly_salary': '0.00',
+      'monthly_salary': '',
       'join_date': '',
-      'branch_id': activeBranch != null ? activeBranch.toString() : '1',
+      'branch_id': activeBranch != null ? activeBranch.toString() : '',
     };
   }
 
@@ -171,9 +171,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                               'email': '',
                               'position': 'Waiter',
                               'phone': '',
-                              'monthly_salary': '0.00',
+                              'monthly_salary': '',
                               'join_date': '',
-                              'branch_id': ref.read(selectedBranchProvider)?.toString() ?? '1',
+                              'branch_id': ref.read(selectedBranchProvider)?.toString() ?? '',
                             });
                           });
                         },
@@ -310,8 +310,8 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       'employee_id': employee['employee_id'],
       'payment_month': date.month,
       'payment_year': date.year,
-      'bonus': '0',
-      'deductions': '0',
+      'bonus': '',
+      'deductions': '',
       'payment_mode': 'Bank Transfer',
     };
     
@@ -335,7 +335,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       initialValue: formData['bonus'],
-                      decoration: InputDecoration(labelText: 'Bonus (${CurrencyFormatter.activeSymbol})'),
+                      decoration: InputDecoration(labelText: 'Bonus (${CurrencyFormatter.activeSymbol})', hintText: '0.00'),
                       keyboardType: TextInputType.number,
                       onChanged: (v) {
                         formData['bonus'] = v;
@@ -345,7 +345,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       initialValue: formData['deductions'],
-                      decoration: InputDecoration(labelText: 'Deductions (${CurrencyFormatter.activeSymbol})'),
+                      decoration: InputDecoration(labelText: 'Deductions (${CurrencyFormatter.activeSymbol})', hintText: '0.00'),
                       keyboardType: TextInputType.number,
                       onChanged: (v) {
                         formData['deductions'] = v;

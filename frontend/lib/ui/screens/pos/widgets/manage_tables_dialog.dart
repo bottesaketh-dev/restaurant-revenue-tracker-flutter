@@ -48,7 +48,7 @@ class _ManageTablesDialogState extends ConsumerState<ManageTablesDialog> {
 
   void _addNewEntryRow() {
     setState(() {
-      _newEntries.add(_TableEntry(initialTableId: '', initialCapacity: '4'));
+      _newEntries.add(_TableEntry(initialTableId: '', initialCapacity: ''));
     });
   }
 
@@ -101,7 +101,7 @@ class _ManageTablesDialogState extends ConsumerState<ManageTablesDialog> {
         final tid = entry.tableId.text.trim();
         final capStr = entry.capacity.text.trim();
 
-        if (tid.isNotEmpty && capStr.isNotEmpty) {
+        if (tid.isNotEmpty) {
           validPayloads.add({
             "table_id": tid,
             "capacity": int.tryParse(capStr) ?? 4,
@@ -141,6 +141,7 @@ class _ManageTablesDialogState extends ConsumerState<ManageTablesDialog> {
     final inputDecoration = InputDecoration(
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: Colors.grey.shade300),

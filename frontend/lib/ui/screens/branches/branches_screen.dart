@@ -618,7 +618,7 @@ class _BranchDialogState extends ConsumerState<_BranchDialog> {
                 // Branch Name
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Branch Name * (e.g. Madhapur Flagship)'),
+                  decoration: const InputDecoration(labelText: 'Branch Name *', hintText: 'e.g. Madhapur Flagship'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Branch name is required' : null,
                 ),
                 const SizedBox(height: 16),
@@ -626,7 +626,7 @@ class _BranchDialogState extends ConsumerState<_BranchDialog> {
                 // Address
                 TextFormField(
                   controller: _addressController,
-                  decoration: const InputDecoration(labelText: 'Branch Address'),
+                  decoration: const InputDecoration(labelText: 'Branch Address', hintText: 'e.g. Plot 42, Hitech City Main Rd'),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 16),
@@ -634,7 +634,7 @@ class _BranchDialogState extends ConsumerState<_BranchDialog> {
                 // Contact Phone
                 TextFormField(
                   controller: _phoneController,
-                  decoration: const InputDecoration(labelText: 'Contact Phone Number'),
+                  decoration: const InputDecoration(labelText: 'Contact Phone Number', hintText: 'e.g. +91 9876543210'),
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 16),
