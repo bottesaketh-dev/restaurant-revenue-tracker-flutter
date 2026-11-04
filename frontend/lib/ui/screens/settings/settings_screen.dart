@@ -8,6 +8,7 @@ import '../../../core/app_notifier.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/responsive.dart';
 import '../../../core/support_provider.dart';
+import '../../../core/currency_formatter.dart';
 
 enum SettingsTab {
   printer,
@@ -566,7 +567,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // --------------------------------------------------------------------------
   Widget _buildReceiptSection(bool isMobile, bool canEditBranding, AuthState authState) {
     final activeTenant = ref.watch(activeTenantInfoProvider);
-    final currencySymbol = authState.currencySymbol;
+    final currencySymbol = activeTenant.currencySymbol;
+    final currencyCode = activeTenant.currencyCode;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -795,14 +797,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               ],
                             ),
                             const Text('--------------------------------', style: TextStyle(fontFamily: 'Courier')),
-                            _buildPreviewRow('Hyderabadi Biryani', '2', '$currencySymbol 680.00'),
-                            _buildPreviewRow('Paneer Butter Masala', '1', '$currencySymbol 240.00'),
-                            _buildPreviewRow('Butter Naan', '4', '$currencySymbol 160.00'),
+                            _buildPreviewRow('Hyderabadi Biryani', '2', CurrencyFormatter.format(680.0, symbol: currencySymbol, code: currencyCode)),
+                            _buildPreviewRow('Paneer Butter Masala', '1', CurrencyFormatter.format(240.0, symbol: currencySymbol, code: currencyCode)),
+                            _buildPreviewRow('Butter Naan', '4', CurrencyFormatter.format(160.0, symbol: currencySymbol, code: currencyCode)),
                             const Text('--------------------------------', style: TextStyle(fontFamily: 'Courier')),
-                            _buildPreviewRow('Subtotal:', '', '$currencySymbol 1,080.00'),
-                            _buildPreviewRow('GST (${_taxRateController.text}%):', '', '$currencySymbol 54.00'),
+                            _buildPreviewRow('Subtotal:', '', CurrencyFormatter.format(1080.0, symbol: currencySymbol, code: currencyCode)),
+                            _buildPreviewRow('GST (${_taxRateController.text}%):', '', CurrencyFormatter.format(54.0, symbol: currencySymbol, code: currencyCode)),
                             const Text('================================', style: TextStyle(fontFamily: 'Courier')),
-                            _buildPreviewRow('TOTAL AMOUNT:', '', '$currencySymbol 1,134.00', bold: true),
+                            _buildPreviewRow('TOTAL AMOUNT:', '', CurrencyFormatter.format(1134.0, symbol: currencySymbol, code: currencyCode), bold: true),
                             const Text('================================', style: TextStyle(fontFamily: 'Courier')),
                             const SizedBox(height: 6),
                             if (_receiptFooterController.text.trim().isNotEmpty) ...[
@@ -891,6 +893,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildPosRulesSection(bool isMobile, bool canEditBranding) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final activeTenant = ref.watch(activeTenantInfoProvider);
+    final isIndian = CurrencyFormatter.isIndianCurrency(
+      code: activeTenant.currencyCode,
+      symbol: activeTenant.currencySymbol,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -990,6 +997,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onChanged: (val) {
                           if (val != null) notifier.updatePosWorkflow(defaultPaymentMethod: val);
                         },
+                      ),
+                    ),
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: isIndian ? Colors.green.shade50 : Colors.blue.shade50,
+                    child: Icon(
+                      Icons.currency_exchange,
+                      size: 20,
+                      color: isIndian ? Colors.green.shade800 : Colors.blue.shade800,
+                    ),
+                  ),
+                  title: const Text('Active Currency & Grouping Format'),
+                  subtitle: Text(
+                    isIndian
+                        ? 'Indian Lakhs & Crores (e.g. ₹ 10,00,000.00) • Currency: ${activeTenant.currencyCode} (${activeTenant.currencySymbol})'
+                        : 'International 3-Digit Grouping (e.g. ${activeTenant.currencySymbol} 1,000,000.00) • Currency: ${activeTenant.currencyCode} (${activeTenant.currencySymbol})',
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isIndian ? Colors.green.shade50 : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: isIndian ? Colors.green.shade300 : Colors.blue.shade300),
+                    ),
+                    child: Text(
+                      isIndian ? 'Indian Format' : 'Western Format',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isIndian ? Colors.green.shade800 : Colors.blue.shade800,
                       ),
                     ),
                   ),

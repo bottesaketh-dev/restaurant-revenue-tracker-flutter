@@ -74,7 +74,7 @@ class _MenuItemDialogState extends ConsumerState<MenuItemDialog> {
       _entries.add(_ItemEntry(
         initialName: '',
         initialPrice: '',
-        initialCategory: _entries.isNotEmpty ? _entries.last.category.text : '', // Copy previous category for convenience
+        initialCategory: '',
         initialDesc: '',
         initialImageUrl: '',
       ));

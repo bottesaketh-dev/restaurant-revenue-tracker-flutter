@@ -507,11 +507,14 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
                                         child: TextFormField(
                                           decoration: const InputDecoration(
                                             labelText: 'Quantity',
+                                            hintText: '0.00',
                                             border: OutlineInputBorder(),
                                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                           ),
                                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                          initialValue: ingredient['quantity_required']?.toString() ?? '',
+                                          initialValue: (ingredient['quantity_required'] != null && ingredient['quantity_required'] != 0.0)
+                                              ? ingredient['quantity_required'].toString()
+                                              : '',
                                           onChanged: (val) {
                                             setState(() {
                                               _ingredients[index]['quantity_required'] = double.tryParse(val) ?? 0.0;
@@ -539,7 +542,7 @@ class _RecipeDialogState extends ConsumerState<_RecipeDialog> {
                                 setState(() {
                                   _ingredients.add({
                                     'grocery_item_id': groceries.first['grocery_item_id'],
-                                    'quantity_required': 0.0,
+                                    'quantity_required': null,
                                   });
                                 });
                               },

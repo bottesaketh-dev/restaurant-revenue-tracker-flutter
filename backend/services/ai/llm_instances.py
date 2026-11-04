@@ -45,6 +45,7 @@ try:
             max_tokens=None,
             timeout=None,
             max_retries=2,
+            streaming=True,
         )
     }
 except Exception as _exp:

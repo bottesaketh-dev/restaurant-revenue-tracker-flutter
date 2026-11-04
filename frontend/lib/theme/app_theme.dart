@@ -83,6 +83,21 @@ class AppTheme {
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
+        hintStyle: GoogleFonts.inter(
+          fontSize: 14,
+          color: const Color(0xFF9CA3AF), // Tailwind Cool Grey 400 - light, clearly distinct placeholder
+          fontWeight: FontWeight.normal,
+        ),
+        labelStyle: GoogleFonts.inter(
+          fontSize: 14,
+          color: const Color(0xFF6B7280), // Neutral subtle label
+          fontWeight: FontWeight.normal,
+        ),
+        floatingLabelStyle: GoogleFonts.inter(
+          fontSize: 14,
+          color: primary,
+          fontWeight: FontWeight.w500,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFC1C8C2)),

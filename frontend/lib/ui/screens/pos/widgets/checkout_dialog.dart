@@ -208,7 +208,11 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                             child: TextField(
                               controller: _cashController,
                               keyboardType: TextInputType.number,
-                              decoration: InputDecoration(labelText: 'Cash ${CurrencyFormatter.activeSymbol}', isDense: true),
+                              decoration: InputDecoration(
+                                labelText: 'Cash ${CurrencyFormatter.activeSymbol}',
+                                hintText: '0.00',
+                                isDense: true,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -216,7 +220,11 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                             child: TextField(
                               controller: _upiController,
                               keyboardType: TextInputType.number,
-                              decoration: InputDecoration(labelText: 'UPI ${CurrencyFormatter.activeSymbol}', isDense: true),
+                              decoration: InputDecoration(
+                                labelText: 'UPI ${CurrencyFormatter.activeSymbol}',
+                                hintText: '0.00',
+                                isDense: true,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -224,7 +232,11 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
                             child: TextField(
                               controller: _cardController,
                               keyboardType: TextInputType.number,
-                              decoration: InputDecoration(labelText: 'Card ${CurrencyFormatter.activeSymbol}', isDense: true),
+                              decoration: InputDecoration(
+                                labelText: 'Card ${CurrencyFormatter.activeSymbol}',
+                                hintText: '0.00',
+                                isDense: true,
+                              ),
                             ),
                           ),
                         ],

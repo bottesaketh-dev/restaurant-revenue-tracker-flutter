@@ -221,7 +221,7 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                   builder: (context) => AlertDialog(
                                     title: const Text('Add New Category'),
                                     content: TextFormField(
-                                      decoration: const InputDecoration(labelText: 'Category Name'),
+                                      decoration: const InputDecoration(labelText: 'Category Name', hintText: 'e.g. Dairy & Eggs'),
                                       onChanged: (v) => newCatName = v,
                                     ),
                                     actions: [
@@ -278,12 +278,12 @@ class _GroceriesScreenState extends ConsumerState<GroceriesScreen> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             TextFormField(
-                                              decoration: const InputDecoration(labelText: 'Product Name'),
+                                              decoration: const InputDecoration(labelText: 'Product Name', hintText: 'e.g. Basmati Rice'),
                                               onChanged: (v) => newItemName = v,
                                             ),
                                             const SizedBox(height: 16),
                                             TextFormField(
-                                              decoration: const InputDecoration(labelText: 'Unit (e.g. kg, L, pcs)'),
+                                              decoration: const InputDecoration(labelText: 'Unit', hintText: 'e.g. kg, L, pcs'),
                                               onChanged: (v) => newUnit = v,
                                             ),
                                           ],

@@ -27,7 +27,7 @@ The platform unifies the full restaurant lifecycle: table management, Kitchen Or
 ## ✨ Core Features & Functional Modules
 
 ### 1. Executive Analytics & Dynamic KPI Dashboard (`/home`)
-- **Real-Time Financial Telemetry:** Today's gross sales, net profit margins, daily operating cashflow, active dining tables, and pending KOTs.
+- **Real-Time Financial Telemetry:** Today's gross inflow (with Cash, UPI, Card tender split chips), operating cash outflow (with Groceries, Expenses, Salaries category breakdown chips), net cashflow (with Net Margin % and Operating Status chips), active dining tables, and pending KOTs.
 - **Category Sales Breakdown:** Donut visualizations of revenue shares across food categories (Biryani, Starters, Curries, Beverages, Desserts).
 - **Hourly Sales Curve:** Intra-day sales velocity comparing lunch and dinner rushes against 7-day trailing benchmarks.
 - **Multi-Tenant Context Switching:** Super Admins can switch between organizations or view aggregated cross-organization analytics in real time.
@@ -61,7 +61,7 @@ The platform unifies the full restaurant lifecycle: table management, Kitchen Or
 - **5 Comprehensive Sub-Tabs:**
   - **Printer & Hardware:** Printer device selection, paper width (80mm / 58mm), auto-print on checkout toggle, and 1-click printer test.
   - **Receipt & Branding:** Header, address, GSTIN, footer tagline, and interactive monospace thermal preview.
-  - **POS & Billing Rules:** Default GST rate, service charge %, currency format, and default tender type.
+  - **POS & Billing Rules:** Default GST rate, service charge %, active currency & regional number format (Indian Lakhs/Crores vs International), and default tender type.
   - **My Profile:** User profile identity, role badge, assigned branch, and secure in-app password change form.
   - **System & Terminal:** Device telemetry, API health status, local database metrics, and client versioning.
 - **Deep Linking Navigation:** Clicking the top-right profile avatar on any page navigates directly to `/settings?tab=profile`.
@@ -103,9 +103,13 @@ The platform unifies the full restaurant lifecycle: table management, Kitchen Or
 - **One-Click Data Export:** Export analytical reports to formatted PDF or raw CSV.
 
 ### 13. Conversational AI Command Center (`/ai`)
-- **Natural Language to SQL:** Ask complex questions in plain English (e.g. *"Show top selling biryani items for Madhapur branch this month"*).
-- **Tenant Isolation Guardrails:** The query engine dynamically injects `restaurant_id` constraints into generated SQL to strictly prevent cross-tenant queries.
-- **Dynamic Charting:** Executes visual scripts to render responsive Altair data visualizations.
+- **Natural Language to SQL:** Ask complex operational queries in plain English (e.g., *"Compare food costs between Madhapur and Gachibowli for Biryani"*).
+- **Persistent Multi-Tenant History:** Stores chat sessions (`chat_conversations`) and messages (`chat_messages`) in SQLite, scoped strictly by `user_id` and `restaurant_id`, with automatic smart title generation from initial inquiries.
+- **Sidebar & History Management:** Quick sidebar (desktop) and drawer (mobile) with relative timestamps, active thread highlighting, conversation renaming, deletion, and prominent "+ New Chat" button.
+- **In-Timeline Progressive Streaming:** Live token and execution stage streaming (`application/x-ndjson`) with split-chunk network buffer handling, animated "Thinking..." indicator, and collapsible checklist ("✓ Completed X execution steps") without exposing private SQL or database schemas.
+- **Native Inline Charts (`fl_chart`):** Renders Bar, Line, Pie, Donut, and Area charts directly inside the assistant message timeline using declarative JSON specifications. Replaces unsafe Altair Python `exec()` with offline-capable native Flutter widgets and includes an expandable "View Data" tabular viewer.
+- **Branch Context Continuity:** Live branch focus indicator badge (`📍 Branch Name`), automatic branch switch detection with in-timeline system event pills (`⚡ Switched to branch: ...`), and branch-scoped query continuity.
+- **C-Level SQLite Security Guard:** Safe read-only execution enforcing native SQLite `PRAGMA query_only = ON` and C-driver `set_authorizer` blocking modifying statements (`INSERT`, `UPDATE`, `DELETE`, `DROP`) and sensitive tables (`users`, `user_permissions`, `sqlite_master`).
 
 ---
 
@@ -226,7 +230,10 @@ Execute the Flutter automated test suite:
 cd frontend
 flutter test
 ```
-- **Coverage (29 tests passing 100%):**
+- **Coverage (45 tests passing 100%):**
+  - Input field placeholder styling & non-prefilled forms audit (`input_fields_styling_test.dart`)
+  - Outflow category chips & net cashflow status breakdown (`outflow_chips_test.dart`)
+  - Currency formatting & Indian numbering system (`currency_formatter_test.dart`)
   - Branch and Tenant dropdown safety assertion tests (`branch_dropdown_safety_test.dart`)
   - Home dashboard multi-tenant switching (`home_switching_test.dart`)
   - POS ordering and checkout workflows (`pos_workflow_test.dart`)
@@ -295,7 +302,7 @@ restaurant-revenue-tracker-flutter/
 │   │   │   ├── reports_provider.dart      # Analytical report pillar providers
 │   │   │   ├── users_provider.dart        # User roster & granular tab permissions
 │   │   │   ├── chat_provider.dart         # Conversational AI assistant state
-│   │   │   ├── currency_formatter.dart    # Dynamic INR (₹) formatting
+│   │   │   ├── currency_formatter.dart    # Dynamic Indian (Lakhs/Crores) & Western multi-currency formatting
 │   │   │   └── nav_tabs.dart              # Role-aware navigation definitions
 │   │   ├── models/                        # Immutable Dart data transfer models
 │   │   ├── theme/                         # Material 3 styling and color palettes

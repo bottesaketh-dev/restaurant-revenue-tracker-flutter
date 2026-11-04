@@ -74,11 +74,14 @@ final activeTenantInfoProvider = Provider<ActiveTenantInfo>((ref) {
   final restaurantListAsync = ref.watch(restaurantListProvider);
 
   if (selectedRestaurantId == null) {
+    final sym = authState.currencySymbol;
+    final cd = authState.currencyCode;
+    CurrencyFormatter.setCurrency(symbol: sym, code: cd);
     return ActiveTenantInfo(
       restaurantId: null,
       name: authState.isSuperAdmin ? 'All Tenants (Global)' : authState.restaurantName,
-      currencySymbol: authState.currencySymbol,
-      currencyCode: authState.currencyCode,
+      currencySymbol: sym,
+      currencyCode: cd,
     );
   }
 
@@ -94,6 +97,7 @@ final activeTenantInfoProvider = Provider<ActiveTenantInfo>((ref) {
 
   final symbol = matched['currency_symbol']?.toString() ?? '₹';
   final code = matched['currency_code']?.toString() ?? 'INR';
+  CurrencyFormatter.setCurrency(symbol: symbol, code: code);
 
   return ActiveTenantInfo(
     restaurantId: selectedRestaurantId,

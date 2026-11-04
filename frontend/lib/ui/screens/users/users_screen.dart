@@ -616,20 +616,23 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
             children: [
               TextFormField(
                 initialValue: _username,
-                decoration: const InputDecoration(labelText: 'Username'),
+                decoration: const InputDecoration(labelText: 'Username', hintText: 'e.g. jdoe'),
                 validator: (val) => val!.isEmpty ? 'Required' : null,
                 onSaved: (val) => _username = val!,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 initialValue: _email,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(labelText: 'Email', hintText: 'e.g. jdoe@restaurant.com'),
                 validator: (val) => val!.isEmpty ? 'Required' : null,
                 onSaved: (val) => _email = val!,
               ),
               const SizedBox(height: 16),
               TextFormField(
-                decoration: InputDecoration(labelText: widget.user == null ? 'Password' : 'New Password (leave blank to keep)'),
+                decoration: InputDecoration(
+                  labelText: widget.user == null ? 'Password' : 'New Password (leave blank to keep)',
+                  hintText: '••••••••',
+                ),
                 obscureText: true,
                 onSaved: (val) => _password = val ?? '',
               ),

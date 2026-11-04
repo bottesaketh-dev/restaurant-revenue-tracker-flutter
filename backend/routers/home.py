@@ -82,6 +82,9 @@ def get_cashflow_summary(
         "upi_inflow": upi_val or Decimal('0.00'),
         "card_inflow": card_val or Decimal('0.00'),
         "outflow": total_outflow,
+        "grocery_outflow": grocery_outflow,
+        "expense_outflow": expense_outflow,
+        "salary_outflow": salary_outflow,
         "net": total_inflow - total_outflow
     }
 
@@ -233,6 +236,9 @@ def get_dashboard_summary(
         "card_inflow": float(curr_summary["card_inflow"]),
         "outflow": float(curr_summary["outflow"]),
         "outflow_pct": calc_pct(curr_summary["outflow"], prior_summary["outflow"]),
+        "grocery_outflow": float(curr_summary["grocery_outflow"]),
+        "expense_outflow": float(curr_summary["expense_outflow"]),
+        "salary_outflow": float(curr_summary["salary_outflow"]),
         "net": float(curr_summary["net"]),
         "net_pct": calc_pct(curr_summary["net"], prior_summary["net"]),
         "recent_bills": bills_data,

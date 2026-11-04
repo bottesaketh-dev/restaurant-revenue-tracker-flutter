@@ -283,3 +283,34 @@ class SupportTicket(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
+
+class ChatConversation(Base):
+    __tablename__ = "chat_conversations"
+    conversation_id = Column(String(36), primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    restaurant_id = Column(Integer, ForeignKey("restaurants.restaurant_id", ondelete="CASCADE"), nullable=True, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.branch_id", ondelete="SET NULL"), nullable=True)
+    title = Column(String(255), nullable=False, default="New Chat")
+    is_archived = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    last_message_at = Column(DateTime, default=func.now())
+
+    messages = relationship("ChatMessage", back_populates="conversation", cascade="all, delete-orphan", order_by="ChatMessage.created_at")
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    message_id = Column(String(36), primary_key=True, index=True)
+    conversation_id = Column(String(36), ForeignKey("chat_conversations.conversation_id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(20), nullable=False)  # 'user', 'assistant', 'system'
+    content = Column(Text, nullable=False, default="")
+    restaurant_id = Column(Integer, nullable=True)
+    branch_id = Column(Integer, nullable=True)
+    status = Column(String(20), nullable=False, default="completed")  # 'pending', 'completed', 'failed', 'cancelled'
+    metadata_json = Column(Text, nullable=True)  # JSON for plan steps, charts, raw data, etc.
+    created_at = Column(DateTime, default=func.now())
+
+    conversation = relationship("ChatConversation", back_populates="messages")
+
+
